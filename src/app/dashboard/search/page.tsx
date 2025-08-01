@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Force dynamic rendering to prevent SSR issues with Convex
+export const dynamic = 'force-dynamic';
+
 // US States for dropdown
 const US_STATES = [
   { value: "AL", label: "Alabama" },

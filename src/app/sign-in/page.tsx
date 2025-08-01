@@ -11,7 +11,7 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      // Redirect to dashboard if user is already signed in
+      // Redirect directly to dashboard after signin
       router.push('/dashboard');
     }
   }, [user, isLoaded, router]);
@@ -37,6 +37,7 @@ export default function SignInPage() {
             }
           }}
           redirectUrl="/dashboard"
+          afterSignInUrl="/dashboard"
         />
       </div>
     </div>

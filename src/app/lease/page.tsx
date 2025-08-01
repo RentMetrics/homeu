@@ -9,6 +9,9 @@ import { useUser } from '@clerk/nextjs';
 import { useEffect } from "react";
 import Link from "next/link";
 
+// Force dynamic rendering to prevent SSR issues with Convex
+export const dynamic = 'force-dynamic';
+
 export default function LeasePage() {
   const { user } = useUser();
   const [file, setFile] = useState<File | null>(null);

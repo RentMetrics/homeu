@@ -46,8 +46,12 @@ export default function DashboardPage() {
   // Check if user needs onboarding
   useEffect(() => {
     if (user && isLoaded) {
-      const onboardingComplete = user.publicMetadata?.onboardingComplete;
-      if (!onboardingComplete) {
+      // Check if user has completed onboarding
+      const onboardingComplete = user.unsafeMetadata?.onboardingComplete;
+      const isNewUser = !onboardingComplete;
+      
+      if (isNewUser) {
+        // Show onboarding modal for new users
         setShowOnboardingModal(true);
       }
     }
@@ -251,7 +255,7 @@ export default function DashboardPage() {
           {/* Credit Score Header with Tabs */}
           <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <h3 className="text-xl font-bold">Thomas D Devos</h3>
+              <h3 className="text-xl font-bold">Credit Score</h3>
               <span className="ml-2 text-sm text-gray-500">
                 {selectedBureau === "allbureaus" ? "Your credit overview" : `Your credit is ${activeBureau?.rating?.toLowerCase?.() ?? ''}`}
               </span>

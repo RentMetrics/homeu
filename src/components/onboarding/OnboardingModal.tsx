@@ -116,7 +116,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     // Update user metadata to mark onboarding as complete
     if (user) {
       user.update({
-        publicMetadata: {
+        unsafeMetadata: {
           onboardingComplete: true,
           verified: true,
         }
@@ -280,77 +280,102 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     return null;
   }
 
+  const steps: OnboardingStep[] = ['verification', 'bank-connection', 'property-search', 'management-company', 'complete'];
+
+  const handlePrevious = () => {
+    const currentIndex = steps.indexOf(currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1]);
+    }
+  };
+
+  const handleNext = () => {
+    const currentIndex = steps.indexOf(currentStep);
+    if (currentIndex < steps.length - 1) {
+      setCurrentStep(steps[currentIndex + 1]);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Complete Your Setup</DialogTitle>
         </DialogHeader>
-
+        
         {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-8">
-          {(['verification', 'bank-connection', 'property-search', 'management-company', 'complete'] as OnboardingStep[]).map((step, index) => (
-            <div key={step} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-gray-200 bg-white">
-                  {getStepIcon(step)}
+        <div className="flex justify-center mb-8">
+          <div className="flex space-x-4">
+            {steps.map((step, index) => (
+              <div key={step} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  currentStep === step 
+                    ? 'bg-green-600 text-white' 
+                    : steps.indexOf(currentStep) > index 
+                    ? 'bg-green-100 text-green-600' 
+                    : 'bg-gray-200 text-gray-500'
+                }`}>
+                  {steps.indexOf(currentStep) > index ? '✓' : index + 1}
                 </div>
-                <span className="text-xs mt-2 text-center max-w-20">
-                  {getStepTitle(step)}
-                </span>
+                {index < steps.length - 1 && (
+                  <div className={`w-12 h-0.5 mx-2 ${
+                    steps.indexOf(currentStep) > index ? 'bg-green-600' : 'bg-gray-200'
+                  }`} />
+                )}
               </div>
-              {index < 4 && (
-                <div className="w-16 h-0.5 bg-gray-200 mx-2" />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Step Content */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-2">{getStepTitle(currentStep)}</h2>
-            <p className="text-muted-foreground mb-6">{getStepDescription(currentStep)}</p>
-          </div>
-          
+        <div className="min-h-[400px]">
           {renderStepContent()}
         </div>
 
         {/* Navigation */}
-        {currentStep !== 'complete' && (
-          <div className="flex justify-between pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Handle back navigation
-                const steps: OnboardingStep[] = ['verification', 'bank-connection', 'property-search', 'management-company', 'complete'];
-                const currentIndex = steps.indexOf(currentStep);
-                if (currentIndex > 0) {
-                  setCurrentStep(steps[currentIndex - 1]);
-                }
-              }}
-              disabled={currentStep === 'verification'}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            
-            <Button
-              onClick={() => {
-                // Handle skip or next
-                const steps: OnboardingStep[] = ['verification', 'bank-connection', 'property-search', 'management-company', 'complete'];
-                const currentIndex = steps.indexOf(currentStep);
-                if (currentIndex < steps.length - 1) {
-                  setCurrentStep(steps[currentIndex + 1]);
-                }
-              }}
-              disabled={getStepStatus(currentStep) !== 'complete'}
-            >
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+        <div className="flex justify-between mt-8">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 'verification'}
+          >
+            Previous
+          </Button>
+          
+          <div className="flex space-x-2">
+            {currentStep !== 'complete' ? (
+              <Button
+                onClick={handleNext}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Next'
+                )}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleComplete}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Completing...
+                  </>
+                ) : (
+                  'Complete Setup'
+                )}
+              </Button>
+            )}
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );

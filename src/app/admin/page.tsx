@@ -10,6 +10,9 @@ import { useMutation, useQuery, useAction } from 'convex/react';
 import { api } from '@convex/_generated/api';
 import { toast } from 'sonner';
 
+// Force dynamic rendering to prevent SSR issues with Convex
+export const dynamic = 'force-dynamic';
+
 export default function AdminPortal() {
   const [activeTab, setActiveTab] = useState('properties');
   const [isEnriching, setIsEnriching] = useState(false);

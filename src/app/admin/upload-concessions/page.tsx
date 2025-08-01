@@ -9,6 +9,9 @@ import { api } from "@convex/_generated/api";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 
+// Force dynamic rendering to prevent SSR issues with Convex
+export const dynamic = 'force-dynamic';
+
 interface ConcessionData {
   propertyId: string;
   month: string;

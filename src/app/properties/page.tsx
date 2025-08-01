@@ -24,6 +24,9 @@ import { useQuery } from 'convex/react';
 import { api } from '@convex/_generated/api';
 import Link from "next/link";
 
+// Force dynamic rendering to prevent SSR issues with Convex
+export const dynamic = 'force-dynamic';
+
 // Helper function to get score color
 const getScoreColor = (score: number) => {
   if (score >= 90) return 'text-green-600';
