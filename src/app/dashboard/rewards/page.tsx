@@ -83,7 +83,11 @@ export default function RewardsPage() {
               {rewardOptions.map((reward, index) => (
                 <div key={reward.id} className="flex items-center justify-between border-b pb-6 last:border-0 last:pb-0">
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full bg-${index === 0 ? 'yellow' : index === 1 ? 'gray' : 'orange'}-100 flex items-center justify-center`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      index === 0 ? 'bg-yellow-100' : 
+                      index === 1 ? 'bg-gray-100' : 
+                      'bg-orange-100'
+                    }`}>
                       {index === 0 ? (
                         <Star className="h-6 w-6 text-yellow-500 fill-yellow-500" />
                       ) : index === 1 ? (

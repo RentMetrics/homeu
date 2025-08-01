@@ -104,8 +104,8 @@ export default function PropertiesPage() {
 
   // Get properties from Convex using the efficient location-based search
   const searchResult = useQuery(api.multifamilyproperties.searchPropertiesByLocation, {
-    city: city,
-    state: state,
+    city: city || undefined,
+    state: state || undefined,
     limit: 100
   });
 
@@ -122,6 +122,8 @@ export default function PropertiesPage() {
 
   // Filter properties based on additional criteria
   const filteredProperties = searchResult?.filter(property => {
+    if (!property) return false;
+    
     const matchesYearBuilt = yearBuiltFilter === 'all' || 
       (yearBuiltFilter === 'new' && property.yearBuilt >= 2020) ||
       (yearBuiltFilter === 'recent' && property.yearBuilt >= 2010 && property.yearBuilt < 2020) ||
@@ -136,10 +138,11 @@ export default function PropertiesPage() {
   }) || [];
 
   // Get unique cities and states for display
-  const cities = [...new Set(allProperties?.map(p => p.city) || [])].sort();
-  const states = [...new Set(allProperties?.map(p => p.state) || [])].sort();
+  const cities = [...new Set(allProperties?.map(p => p.city).filter(Boolean) || [])].sort();
+  const states = [...new Set(allProperties?.map(p => p.state).filter(Boolean) || [])].sort();
 
-  if (!searchResult && !allProperties) {
+  // Show loading state while data is being fetched
+  if (searchResult === undefined || allProperties === undefined) {
     return (
       <div className="container mx-auto py-8">
         <div className="text-center py-12">
@@ -216,7 +219,7 @@ export default function PropertiesPage() {
               {property.googleImageUrl ? (
                 <img
                   src={property.googleImageUrl}
-                  alt={property.propertyName}
+                  alt={property.propertyName || 'Property'}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -225,7 +228,7 @@ export default function PropertiesPage() {
                 </div>
               )}
               <Badge className="absolute top-2 right-2">
-                {property.totalUnits} units
+                {property.totalUnits || 0} units
               </Badge>
               {property.googleRating && (
                 <div className="absolute top-2 left-2 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1">
@@ -237,10 +240,10 @@ export default function PropertiesPage() {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle className="text-xl">{property.propertyName}</CardTitle>
+                  <CardTitle className="text-xl">{property.propertyName || 'Unnamed Property'}</CardTitle>
                   <CardDescription className="flex items-center gap-1 text-sm">
                     <MapPin className="h-4 w-4" />
-                    {property.city}, {property.state}
+                    {property.city || 'Unknown City'}, {property.state || 'Unknown State'}
                   </CardDescription>
                 </div>
                 <div className="flex flex-col items-end">
@@ -261,18 +264,18 @@ export default function PropertiesPage() {
                 <div className="flex items-center gap-4 text-sm text-gray-500">
                   <div className="flex items-center gap-1">
                     <Building2 className="h-4 w-4" />
-                    <span>{property.totalUnits} units</span>
+                    <span>{property.totalUnits || 0} units</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>{property.yearBuilt}</span>
+                    <span>{property.yearBuilt || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <SlidersHorizontal className="h-4 w-4" />
-                    <span>{property.averageUnitSize} sqft avg</span>
+                    <span>{property.averageUnitSize || 0} sqft avg</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600">{property.address}</p>
+                <p className="text-sm text-gray-600">{property.address || 'Address not available'}</p>
                 {property.amenities && property.amenities.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {property.amenities.slice(0, 3).map((amenity: string, index: number) => (
