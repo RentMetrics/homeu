@@ -1,0 +1,12 @@
+{
+  "project": "quirky-ostrich-694",
+  "team": "quirky-ostrich-694",
+  "prodUrl": "https://quirky-ostrich-694.convex.cloud",
+  "functions": "convex/",
+  "authInfo": [
+    {
+      "domain": "https://quirky-ostrich-694.convex.cloud",
+      "applicationID": "convex"
+    }
+  ]
+} 

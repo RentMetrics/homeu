@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String?
+  password          String
+  role              UserRole  @default(RENTER)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  verified          Boolean   @default(false)
+  straddleCustomerId String?  @unique
+  verification      Verification?
+  properties        Property[]
+  payments          Payment[]
+  rentalHistory     RentalHistory[]
+}
+
+model Property {
+  id          String    @id @default(cuid())
+  name        String
+  address     String
+  unitNumber  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  users       User[]
+  payments    Payment[]
+  propertyManager PropertyManager @relation(fields: [managerId], references: [id])
+  managerId   String
+}
+
+model PropertyManager {
+  id          String    @id @default(cuid())
+  name        String
+  email       String    @unique
+  properties  Property[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Payment {
+  id                String    @id @default(cuid())
+  amount            Float
+  currency          String
+  status            PaymentStatus
+  type              PaymentType
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id])
+  userId            String
+  property          Property  @relation(fields: [propertyId], references: [id])
+  propertyId        String
+  straddlePaymentId String?   @unique
+  metadata          Json?
+  cryptoDetails     CryptoPayment?
+}
+
+model CryptoPayment {
+  id          String    @id @default(cuid())
+  txHash      String    @unique
+  amount      Float
+  currency    String    // BTC, ETH
+  status      PaymentStatus
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  payment     Payment   @relation(fields: [paymentId], references: [id])
+  paymentId   String    @unique
+}
+
+model Verification {
+  id          String    @id @default(cuid())
+  status      VerificationStatus
+  documents   Json?     // Store document references
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String    @unique
+}
+
+model RentalHistory {
+  id          String    @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime?
+  status      RentalStatus
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+}
+
+enum UserRole {
+  ADMIN
+  RENTER
+  PROPERTY_MANAGER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  CRYPTO
+  FIAT
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RentalStatus {
+  ACTIVE
+  COMPLETED
+  TERMINATED
+} 
