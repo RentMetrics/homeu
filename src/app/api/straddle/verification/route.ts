@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '../../../../convex/_generated/api';
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function POST(req: Request) {
   try {
@@ -17,47 +13,15 @@ export async function POST(req: Request) {
     }
 
     const data = await req.json();
-    const { 
-      firstName, 
-      lastName, 
-      dateOfBirth, 
-      ssn, 
-      address, 
-      phone,
-      documents 
-    } = data;
-
-    // Get user email from Clerk
-    const user = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-      headers: {
-        'Authorization': `Bearer ${process.env.CLERK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }).then(res => res.json());
-
-    if (!user.email_addresses?.[0]?.email_address) {
-      return NextResponse.json(
-        { error: 'User email not found' },
-        { status: 404 }
-      );
-    }
-
-    const email = user.email_addresses[0].email_address;
-
-    // Call Convex function to handle Straddle verification
-    const result = await convex.mutation(api.straddle.createStraddleCustomer, {
+    
+    // For now, return a mock response
+    // In production, this would call Straddle API directly
+    return NextResponse.json({
+      success: true,
+      message: 'Verification request received',
       userId,
-      email,
-      firstName,
-      lastName,
-      dateOfBirth,
-      ssn,
-      address,
-      phone,
-      documents,
+      data
     });
-
-    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Straddle verification error:', error);
@@ -79,12 +43,12 @@ export async function GET(req: Request) {
       );
     }
 
-    // Call Convex function to get verification status
-    const result = await convex.query(api.straddle.getVerificationStatus, {
-      userId,
+    // For now, return a mock response
+    return NextResponse.json({
+      verified: false,
+      status: 'pending',
+      userId
     });
-
-    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Straddle verification status error:', error);

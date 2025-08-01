@@ -30,7 +30,6 @@ export const get = query({
       properties = properties.filter(
         (p) =>
           p.title.toLowerCase().includes(query) ||
-          p.location.toLowerCase().includes(query) ||
           p.description.toLowerCase().includes(query)
       );
     }
@@ -48,21 +47,14 @@ export const add = mutation({
     beds: v.number(),
     baths: v.number(),
     sqft: v.number(),
-    location: v.string(),
     image: v.string(),
     amenities: v.array(v.string()),
     description: v.string(),
     homeuScore: v.number(),
     scoreFactors: v.array(v.string()),
-    availableDate: v.string(),
   },
   handler: async (ctx, args) => {
-    const now = Date.now();
-    const propertyId = await ctx.db.insert("properties", {
-      ...args,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const propertyId = await ctx.db.insert("properties", args);
     return propertyId;
   },
 }); 

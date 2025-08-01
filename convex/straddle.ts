@@ -133,12 +133,12 @@ export const createStraddleCustomer = mutation({
         phone: args.phone,
       });
 
-      straddleCustomerId = customer.id;
+      straddleCustomerId = (customer as any).id;
 
       // Update or create renter record
       if (existingRenter) {
         await ctx.db.patch(existingRenter._id, {
-          straddleCustomerId: customer.id,
+          straddleCustomerId: (customer as any).id,
           firstName: args.firstName,
           lastName: args.lastName,
           phoneNumber: args.phone,
@@ -163,7 +163,7 @@ export const createStraddleCustomer = mutation({
           employer: "",
           position: "",
           income: 0,
-          straddleCustomerId: customer.id,
+          straddleCustomerId: (customer as any).id,
           verified: false,
         });
       }

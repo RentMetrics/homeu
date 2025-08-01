@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '../../../../convex/_generated/api';
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function POST(req: Request) {
   try {
@@ -16,17 +12,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Call Convex function to create bank connection
-    const result = await convex.mutation(api.straddle.createBankConnection, {
+    const data = await req.json();
+    
+    // For now, return a mock response
+    // In production, this would call Straddle API directly
+    return NextResponse.json({
+      success: true,
+      message: 'Bank connection request received',
       userId,
+      data
     });
-
-    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Straddle bank connection error:', error);
     return NextResponse.json(
-      { error: 'Failed to create bank connection' },
+      { error: 'Failed to process bank connection' },
       { status: 500 }
     );
   }
@@ -43,12 +43,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // Call Convex function to get bank accounts
-    const result = await convex.query(api.straddle.getBankAccounts, {
-      userId,
+    // For now, return a mock response
+    return NextResponse.json({
+      bankAccounts: [],
+      userId
     });
-
-    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Straddle bank accounts error:', error);
