@@ -1,4 +1,5 @@
-import { Navigation } from "@/components/navigation";
+import { AdminAuth } from "@/components/admin/AdminAuth";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 
 export default function AdminLayout({
   children,
@@ -6,8 +7,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Navigation>
-      {children}
-    </Navigation>
+    <AdminAuth>
+      <AdminNavigation>
+        {children}
+      </AdminNavigation>
+    </AdminAuth>
   );
 } 

@@ -1,23 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, Building2, TrendingUp, DollarSign, Users, Sparkles, Database } from 'lucide-react';
+import { Upload, Building2, TrendingUp, DollarSign, Users, Sparkles, Database, UserCheck, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useMutation, useQuery, useAction } from 'convex/react';
-import { api } from '@convex/_generated/api';
+import { api } from '../../../convex/_generated/api';
 import { toast } from 'sonner';
 
 // Force dynamic rendering to prevent SSR issues with Convex
 export const dynamic = 'force-dynamic';
 
 export default function AdminPortal() {
-  const [activeTab, setActiveTab] = useState('properties');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isEnriching, setIsEnriching] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
-  
+
+  // Existing Convex queries
   const enrichAllProperties = useMutation(api.enrich_properties.enrichAllProperties);
   const enrichPropertiesByLocation = useAction(api.google_places.enrichPropertiesByLocation);
   const testGooglePlacesSearch = useAction(api.google_places.testGooglePlacesSearch);
@@ -25,6 +27,11 @@ export default function AdminPortal() {
   const allProperties = useQuery(api.multifamilyproperties.getAllProperties, { limit: 100 });
   const propertiesCount = useQuery(api.multifamilyproperties.getPropertiesCount);
   const propertiesNeedingEnrichment = useQuery(api.google_places.getPropertiesNeedingEnrichment, { city: "Dallas", state: "TX", limit: 50 });
+
+  // New admin queries for customers and property managers
+  const allUsers = useQuery(api.users.getAllUsers, { limit: 100 });
+  const verifiedUsers = useQuery(api.users.getVerifiedUsers, { limit: 50 });
+  const recentSignups = useQuery(api.users.getRecentSignups, { limit: 20 });
 
   const handleEnrichAll = async () => {
     setIsEnriching(true);
@@ -91,21 +98,157 @@ export default function AdminPortal() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Admin Portal</h1>
-        <p className="text-gray-600 mt-2">Manage your multifamily property database</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <p className="text-gray-600 mt-2">Manage customers, properties, and property management companies</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="properties">Properties</TabsTrigger>
-          <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
-          <TabsTrigger value="concessions">Concessions</TabsTrigger>
-          <TabsTrigger value="rent">Rent Data</TabsTrigger>
-          <TabsTrigger value="google">Google Places</TabsTrigger>
-          <TabsTrigger value="debug">Debug</TabsTrigger>
+          <TabsTrigger value="property-managers">Property Managers</TabsTrigger>
+          <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{allUsers?.length || 0}</div>
+                <p className="text-xs text-muted-foreground">Registered renters</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Verified Users</CardTitle>
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{verifiedUsers?.length || 0}</div>
+                <p className="text-xs text-muted-foreground">Identity verified</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Properties</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{propertiesCount || 0}</div>
+                <p className="text-xs text-muted-foreground">Properties in database</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Recent Signups</CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{recentSignups?.length || 0}</div>
+                <p className="text-xs text-muted-foreground">Last 30 days</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Link href="/admin/bulk-upload">
+                  <Button className="w-full justify-start" variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Bulk Upload Properties
+                  </Button>
+                </Link>
+                <Link href="/admin/customers">
+                  <Button className="w-full justify-start" variant="outline">
+                    <Users className="h-4 w-4 mr-2" />
+                    Manage Customers
+                  </Button>
+                </Link>
+                <Link href="/admin/property-managers">
+                  <Button className="w-full justify-start" variant="outline">
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Manage Property Managers
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentSignups?.slice(0, 5).map((user, index) => (
+                    <div key={user._id} className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                      </div>
+                      <Badge variant={user.verified ? "default" : "secondary"}>
+                        {user.verified ? "Verified" : "Pending"}
+                      </Badge>
+                    </div>
+                  )) || (
+                    <p className="text-sm text-gray-500">No recent activity</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="customers" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {allUsers?.map((user) => (
+                  <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-medium">{user.firstName} {user.lastName}</h3>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                          {user.phoneNumber && (
+                            <p className="text-sm text-gray-500">{user.phoneNumber}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={user.verified ? "default" : "secondary"}>
+                        {user.verified ? "Verified" : "Pending"}
+                      </Badge>
+                      <Button size="sm" variant="outline">
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                )) || (
+                  <p className="text-center text-gray-500 py-8">No customers found</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="properties" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

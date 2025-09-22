@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+
+@theme {
+
+  --color-primary-main: #2AA54C;
+  --color-primary-shade1: #D2ECFF;
+  --color-primary-shade: #F3FAFF;
+  --color-primary-light: #005CA3;
+  --color-text-main: #07141D;
+  --color-text-light: #858585;
+  --color-bg-black: #131313;
+}
+
+@utility container {
+  margin-inline: auto;
+  /* centers the container */
+  /* optional: add padding per breakpoint */
+  padding-inline: 1rem;
+ 
+  @variant md {
+    padding-inline: 2rem;
+  }
+ 
+}
+
+
+html{
+  font-family: "bilo", "bilo Fallback" !important;
+}
+
+.my-animation {
+  display: inline-block;
+  animation: updown 3s ease-in-out infinite;
+}
+
+@keyframes updown {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.my-ImgAnimation {
+  display: inline-block;
+  animation: updown2 3s ease-in-out infinite;
+}
+
+@keyframes updown2 {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}

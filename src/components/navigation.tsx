@@ -25,10 +25,9 @@ const navigation = [
   { name: 'My Application', href: '/dashboard/application', icon: FileText },
   { name: 'Properties', href: '/properties', icon: Home },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Rewards', href: '/rewards', icon: Gift },
+  { name: 'Rewards', href: '/dashboard/rewards', icon: Gift },
   { name: 'Setup', href: '/setup', icon: UserCheck },
   { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Admin', href: '/admin/bulk-upload', icon: Upload },
 ];
 
 interface NavigationProps {

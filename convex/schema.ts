@@ -118,4 +118,106 @@ export default defineSchema({
     metadata: v.optional(v.any()),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // Crypto payments table
+  cryptoPayments: defineTable({
+    userId: v.string(),
+    propertyId: v.string(),
+    amount: v.string(),
+    currency: v.string(), // 'ETH', 'BTC', 'USDC', 'USDT'
+    transactionHash: v.string(),
+    status: v.string(), // 'pending', 'confirmed', 'failed'
+    blockNumber: v.optional(v.number()),
+    gasUsed: v.optional(v.string()),
+    gasPrice: v.optional(v.string()),
+    recipientAddress: v.string(),
+    createdAt: v.number(),
+    confirmedAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"])
+    .index("by_txHash", ["transactionHash"])
+    .index("by_property", ["propertyId"]),
+
+  // IPFS documents table
+  ipfsDocuments: defineTable({
+    userId: v.string(),
+    fileName: v.string(),
+    fileType: v.string(),
+    documentType: v.string(), // 'application', 'lease', 'income_verification', 'id_document', 'other'
+    ipfsHash: v.string(),
+    isShared: v.boolean(),
+    sharedWith: v.optional(v.array(v.string())), // Property manager IDs
+    uploadedAt: v.number(),
+    fileSize: v.optional(v.number()),
+    metadata: v.optional(v.any()),
+  }).index("by_userId", ["userId"])
+    .index("by_ipfsHash", ["ipfsHash"])
+    .index("by_documentType", ["documentType"]),
+
+  // Property managers table
+  propertyManagers: defineTable({
+    workosUserId: v.string(),
+    organizationId: v.string(),
+    email: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    companyName: v.string(),
+    role: v.string(), // 'admin', 'manager', 'viewer'
+    properties: v.array(v.string()), // Property IDs they manage
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    lastLogin: v.optional(v.number()),
+  }).index("by_workosUserId", ["workosUserId"])
+    .index("by_organizationId", ["organizationId"])
+    .index("by_email", ["email"]),
+
+  // Property manager organizations
+  propertyManagerOrganizations: defineTable({
+    workosOrganizationId: v.string(),
+    companyName: v.string(),
+    adminEmail: v.string(),
+    properties: v.array(v.string()), // Property IDs managed by this org
+    settings: v.optional(v.any()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_workosOrganizationId", ["workosOrganizationId"]),
+
+  // Renter applications to property managers
+  renterApplications: defineTable({
+    renterId: v.string(),
+    propertyId: v.string(),
+    propertyManagerId: v.string(),
+    organizationId: v.string(),
+    status: v.string(), // 'pending', 'approved', 'rejected', 'under_review'
+    documentsHash: v.string(), // IPFS hash of application documents
+    applicationData: v.any(), // JSON data of the application
+    submittedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    score: v.optional(v.number()), // Application score
+  }).index("by_renterId", ["renterId"])
+    .index("by_propertyId", ["propertyId"])
+    .index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_status", ["status"]),
+
+  // Property manager invoices
+  propertyManagerInvoices: defineTable({
+    organizationId: v.string(),
+    propertyManagerId: v.string(),
+    invoiceNumber: v.string(),
+    month: v.string(), // Format: "YYYY-MM"
+    properties: v.array(v.string()), // Property IDs included in invoice
+    totalAmount: v.number(),
+    currency: v.string(),
+    status: v.string(), // 'draft', 'sent', 'paid', 'overdue'
+    dueDate: v.number(),
+    sentAt: v.optional(v.number()),
+    paidAt: v.optional(v.number()),
+    paymentMethod: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_organizationId", ["organizationId"])
+    .index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_month", ["month"])
+    .index("by_status", ["status"]),
 }); 

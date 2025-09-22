@@ -41,6 +41,15 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* HomeU Landing Page Custom Colors */
+  --color-primary-main: #2AA54C;
+  --color-primary-shade1: #D2ECFF;
+  --color-primary-shade: #F3FAFF;
+  --color-primary-light: #005CA3;
+  --color-text-main: #07141D;
+  --color-text-light: #858585;
+  --color-bg-black: #131313;
 }
 
 :root {
@@ -112,6 +121,15 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@utility container {
+  margin-inline: auto;
+  padding-inline: 1rem;
+
+  @variant md {
+    padding-inline: 2rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -119,4 +137,38 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* HomeU Landing Page Custom Styles */
+.my-animation {
+  display: inline-block;
+  animation: updown 3s ease-in-out infinite;
+}
+
+@keyframes updown {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.my-ImgAnimation {
+  display: inline-block;
+  animation: updown2 3s ease-in-out infinite;
+}
+
+@keyframes updown2 {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* Font Family */
+.font-bilo {
+  font-family: var(--font-bilo), "Bilo Fallback", sans-serif !important;
 }

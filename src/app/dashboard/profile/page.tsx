@@ -1,23 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { User, CreditCard, Bell, Shield, TrendingUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, CreditCard, Bell, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useUserSync } from "@/hooks/useUserSync";
+import { useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { toast } from "sonner";
 
 const tabs = [
   { id: "personal", name: "Personal Information", icon: User },
   { id: "payment", name: "Payment Methods", icon: CreditCard },
-  { id: "reporting", name: "Rent Reporting", icon: TrendingUp },
   { id: "notifications", name: "Notifications", icon: Bell },
   { id: "security", name: "Security", icon: Shield },
 ];
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("personal");
+  const { user, userProfile } = useUserSync();
+  const updateProfile = useMutation(api.users.updateUserProfile);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    dateOfBirth: "",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    employer: "",
+    position: "",
+    income: 0,
+  });
+
+  // Update form data when userProfile loads
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        firstName: userProfile.firstName || "",
+        lastName: userProfile.lastName || "",
+        email: userProfile.email || "",
+        phoneNumber: userProfile.phoneNumber || "",
+        dateOfBirth: userProfile.dateOfBirth || "",
+        street: userProfile.street || "",
+        city: userProfile.city || "",
+        state: userProfile.state || "",
+        zipCode: userProfile.zipCode || "",
+        employer: userProfile.employer || "",
+        position: userProfile.position || "",
+        income: userProfile.income || 0,
+      });
+    }
+  }, [userProfile]);
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+
+    try {
+      await updateProfile({
+        userId: user.id,
+        ...formData
+      });
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update profile");
+      console.error("Profile update error:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -68,25 +131,112 @@ export default function ProfilePage() {
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" defaultValue="John Doe" />
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="john@example.com" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" defaultValue="(555) 123-4567" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">Current Address</Label>
-                  <Input id="address" defaultValue="123 Main St, Apt 4B" />
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="street">Street Address</Label>
+                  <Input
+                    id="street"
+                    value={formData.street}
+                    onChange={(e) => handleInputChange("street", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange("state", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Input
+                    id="zipCode"
+                    value={formData.zipCode}
+                    onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="employer">Employer</Label>
+                  <Input
+                    id="employer"
+                    value={formData.employer}
+                    onChange={(e) => handleInputChange("employer", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
+                    value={formData.position}
+                    onChange={(e) => handleInputChange("position", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="income">Annual Income</Label>
+                  <Input
+                    id="income"
+                    type="number"
+                    value={formData.income}
+                    onChange={(e) => handleInputChange("income", parseInt(e.target.value) || 0)}
+                    placeholder="50000"
+                  />
                 </div>
               </div>
 
               <div className="flex justify-end">
-                <Button className="bg-green-600 hover:bg-green-700">Save Changes</Button>
+                <Button onClick={handleSaveProfile} className="bg-green-600 hover:bg-green-700">
+                  Save Changes
+                </Button>
               </div>
             </div>
           )}
@@ -137,50 +287,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {activeTab === "reporting" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Rent Reporting Settings</h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Status:</span>
-                  <span className="text-sm font-medium text-green-500">Active</span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-medium mb-4">Reporting Preferences</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="experian">Report to Experian</Label>
-                        <Switch id="experian" defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="transunion">Report to TransUnion</Label>
-                        <Switch id="transunion" defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="equifax">Report to Equifax</Label>
-                        <Switch id="equifax" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-medium mb-2">Next Report Date</h4>
-                    <p className="text-sm text-gray-500">March 1, 2024</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-green-600 hover:bg-green-700">Save Preferences</Button>
-              </div>
-            </div>
-          )}
 
           {activeTab === "notifications" && (
             <div className="space-y-6">
@@ -194,10 +300,6 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-between">
                         <Label htmlFor="rent-reminders">Rent Payment Reminders</Label>
                         <Switch id="rent-reminders" defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="credit-updates">Credit Score Updates</Label>
-                        <Switch id="credit-updates" defaultChecked />
                       </div>
                       <div className="flex items-center justify-between">
                         <Label htmlFor="rewards-updates">Rewards Updates</Label>

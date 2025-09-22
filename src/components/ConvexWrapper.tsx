@@ -21,7 +21,9 @@ export function ConvexWrapper({ children }: ConvexWrapperProps) {
 
   // Don't render anything until we're on the client
   if (!isClient) {
-    return <div>Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+    </div>;
   }
 
   // If Convex is not available, render children without Convex
