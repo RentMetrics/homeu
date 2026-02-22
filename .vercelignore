@@ -1,0 +1,17 @@
+# Data files (too large for Vercel)
+data/
+scripts/
+certs/
+rust-wasm/
+
+# Documentation
+*.md
+!README.md
+
+# Build artifacts
+.next/
+
+# Misc
+awardco_api-1.json
+awardco_metadata.xml
+homeu_idp_metadata.xml
