@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import {
 
 interface ManagementCompanyFormProps {
   onManagementCompanyConnected: (managementCompany: any) => void;
+  selectedProperty?: any;
   className?: string;
 }
 
@@ -41,9 +42,10 @@ interface ManagementCompany {
   notes?: string;
 }
 
-export function ManagementCompanyForm({ onManagementCompanyConnected, className }: ManagementCompanyFormProps) {
+export function ManagementCompanyForm({ onManagementCompanyConnected, selectedProperty, className }: ManagementCompanyFormProps) {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preFilledFromProperty, setPreFilledFromProperty] = useState(false);
   const [formData, setFormData] = useState<ManagementCompany>({
     name: '',
     contactPerson: '',
@@ -60,6 +62,20 @@ export function ManagementCompanyForm({ onManagementCompanyConnected, className 
     portalUrl: '',
     notes: '',
   });
+
+  // Auto-populate from selectedProperty PM data
+  useEffect(() => {
+    if (selectedProperty && (selectedProperty.pmCompanyName || selectedProperty.pmEmail || selectedProperty.pmPhone)) {
+      setFormData(prev => ({
+        ...prev,
+        name: selectedProperty.pmCompanyName || prev.name,
+        email: selectedProperty.pmEmail || prev.email,
+        phone: selectedProperty.pmPhone || prev.phone,
+        contactPerson: selectedProperty.pmContactName || prev.contactPerson,
+      }));
+      setPreFilledFromProperty(true);
+    }
+  }, [selectedProperty]);
 
   const handleInputChange = (field: keyof ManagementCompany, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -120,6 +136,14 @@ export function ManagementCompanyForm({ onManagementCompanyConnected, className 
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Pre-filled Banner */}
+            {preFilledFromProperty && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm text-blue-700">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                Pre-filled from property database. Please verify and update if needed.
+              </div>
+            )}
+
             {/* Company Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Company Information</h3>

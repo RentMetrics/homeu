@@ -12,8 +12,10 @@ interface AdminAuthProps {
 
 // Define admin email addresses
 const ADMIN_EMAILS = [
-  'curtisholder91@gmail.com', // Your email
-  // Add more admin emails here as needed
+  'curtisholder91@gmail.com',
+  'curtisholder@gmail.com',
+  'curtis@homeu.co',
+  'cholder@excelsaholding.com',
 ];
 
 export function AdminAuth({ children }: AdminAuthProps) {

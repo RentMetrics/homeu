@@ -306,3 +306,217 @@ export const getRenterApplications = query({
       .collect();
   },
 });
+
+// Admin: Get all property managers with enriched data
+export const getAllPropertyManagers = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { limit = 100 } = args;
+    const pms = await ctx.db.query("propertyManagers").take(limit);
+
+    // Enrich each PM with property details and stats
+    const enriched = await Promise.all(
+      pms.map(async (pm) => {
+        // Get property details
+        const propertyDetails = await Promise.all(
+          pm.properties.map(async (propId) => {
+            const prop = await ctx.db
+              .query("multifamilyproperties")
+              .withIndex("by_propertyId", (q) => q.eq("propertyId", propId))
+              .first();
+            return prop
+              ? {
+                  propertyId: prop.propertyId,
+                  propertyName: prop.propertyName,
+                  address: prop.address,
+                  city: prop.city,
+                  state: prop.state,
+                  zipCode: prop.zipCode,
+                  totalUnits: prop.totalUnits,
+                  isConnectedToHomeU: false,
+                  activeResidents: 0,
+                  totalMonthlyRent: 0,
+                }
+              : { propertyId: propId, propertyName: propId, address: "", city: "", state: "", zipCode: "", totalUnits: 0, isConnectedToHomeU: false, activeResidents: 0, totalMonthlyRent: 0 };
+          })
+        );
+
+        // Get organization
+        const organization = await ctx.db
+          .query("propertyManagerOrganizations")
+          .withIndex("by_workosOrganizationId", (q) => q.eq("workosOrganizationId", pm.organizationId))
+          .first();
+
+        return {
+          ...pm,
+          propertyDetails,
+          organization: organization ? { companyName: organization.companyName, adminEmail: organization.adminEmail } : null,
+          totalPropertyCount: pm.properties.length,
+          connectedPropertyCount: 0,
+          activeRenterCount: 0,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});
+
+// Admin: Create a property manager
+export const adminCreatePropertyManager = mutation({
+  args: {
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    companyName: v.string(),
+    role: v.string(),
+    propertyIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("propertyManagers", {
+      workosUserId: `admin_created_${Date.now()}`,
+      organizationId: `org_${Date.now()}`,
+      email: args.email,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      companyName: args.companyName,
+      role: args.role,
+      properties: args.propertyIds,
+      isActive: true,
+      createdAt: Date.now(),
+    });
+    return id;
+  },
+});
+
+// Admin: Deactivate a property manager
+export const adminDeactivatePropertyManager = mutation({
+  args: {
+    pmId: v.id("propertyManagers"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.pmId, { isActive: false });
+    return args.pmId;
+  },
+});
+
+// Admin: Reactivate a property manager
+export const adminReactivatePropertyManager = mutation({
+  args: {
+    pmId: v.id("propertyManagers"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.pmId, { isActive: true });
+    return args.pmId;
+  },
+});
+
+// Find an active property manager whose properties array includes the given propertyId
+export const findPropertyManagerForProperty = query({
+  args: {
+    propertyId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const allPMs = await ctx.db.query("propertyManagers")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    return allPMs.find((pm) => pm.properties.includes(args.propertyId)) ?? null;
+  },
+});
+
+// Generate an onboarding token for PM bank setup
+export const generateOnboardingToken = mutation({
+  args: {
+    pmId: v.id("propertyManagers"),
+  },
+  handler: async (ctx, args) => {
+    const pm = await ctx.db.get(args.pmId);
+    if (!pm) throw new Error("Property manager not found");
+
+    const token = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    await ctx.db.insert("pmOnboardingTokens", {
+      propertyManagerId: args.pmId,
+      token,
+      email: pm.email,
+      status: "pending",
+      createdAt: Date.now(),
+      expiresAt: Date.now() + sevenDaysMs,
+    });
+
+    return { token };
+  },
+});
+
+// Validate an onboarding token and return PM details
+export const validateOnboardingToken = query({
+  args: {
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const tokenDoc = await ctx.db.query("pmOnboardingTokens")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+
+    if (!tokenDoc) return { valid: false, error: "Token not found" };
+    if (tokenDoc.status === "completed") return { valid: false, error: "Token already used" };
+    if (tokenDoc.status === "expired" || tokenDoc.expiresAt < Date.now()) {
+      return { valid: false, error: "Token expired" };
+    }
+
+    const pm = await ctx.db.get(tokenDoc.propertyManagerId);
+    if (!pm) return { valid: false, error: "Property manager not found" };
+
+    return {
+      valid: true,
+      pm: {
+        id: pm._id,
+        firstName: pm.firstName,
+        lastName: pm.lastName,
+        companyName: pm.companyName,
+        email: pm.email,
+      },
+    };
+  },
+});
+
+// Complete PM onboarding after bank setup
+export const completeOnboarding = mutation({
+  args: {
+    token: v.string(),
+    straddleCustomerId: v.string(),
+    straddleBankAccountId: v.string(),
+    payoutSchedule: v.string(),
+    payoutMethod: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const tokenDoc = await ctx.db.query("pmOnboardingTokens")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+
+    if (!tokenDoc) throw new Error("Token not found");
+    if (tokenDoc.status !== "pending") throw new Error("Token is not pending");
+    if (tokenDoc.expiresAt < Date.now()) throw new Error("Token expired");
+
+    // Update PM with payment details
+    await ctx.db.patch(tokenDoc.propertyManagerId, {
+      straddleCustomerId: args.straddleCustomerId,
+      straddleBankAccountId: args.straddleBankAccountId,
+      paymentOnboardingComplete: true,
+      paymentOnboardingDate: Date.now(),
+      payoutSchedule: args.payoutSchedule,
+      defaultPayoutMethod: args.payoutMethod,
+    });
+
+    // Mark token as completed
+    await ctx.db.patch(tokenDoc._id, {
+      status: "completed",
+      completedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,19 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { 
-  Search, 
-  Home, 
-  MapPin, 
-  Star, 
-  Users, 
+import {
+  Search,
+  Home,
+  MapPin,
+  Star,
+  Users,
   Building2,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface PropertySearchFormProps {
-  onPropertyFound: (property: any) => void;
+  onPropertyFound: (property: any, pmConfirmed?: boolean) => void;
   className?: string;
 }
 
@@ -41,79 +41,52 @@ interface Property {
   homeuScore?: number;
   scoreFactors?: string[];
   amenities?: string[];
+  pmCompanyName?: string;
+  pmEmail?: string;
+  pmPhone?: string;
+  pmContactName?: string;
   createdAt: number;
 }
 
 export function PropertySearchForm({ onPropertyFound, className }: PropertySearchFormProps) {
-  const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<Property[]>([]);
+  const [pmConfirmed, setPmConfirmed] = useState<boolean | null>(null);
 
-  // Get all properties from Convex
-  const allProperties = useQuery(api.multifamilyproperties.list) || [];
+  // Debounce the search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    
-    try {
-      // Filter properties based on search query
-      const filtered = allProperties.filter(property => 
-        property.propertyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.state.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.zipCode.includes(searchQuery)
-      );
-
-      setSearchResults(filtered);
-      
-      if (filtered.length === 0) {
-        toast.info('No properties found. Try a different search term.');
-      }
-    } catch (error) {
-      console.error('Error searching properties:', error);
-      toast.error('Error searching properties. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  // Use the search index query (searches all 47K+ properties)
+  const searchResults = useQuery(
+    api.multifamilyproperties.searchProperties,
+    debouncedQuery.length >= 2
+      ? { searchQuery: debouncedQuery, limit: 20 }
+      : "skip"
+  );
 
   const handlePropertySelect = (property: Property) => {
     setSelectedProperty(property);
-    toast.success(`Selected: ${property.propertyName}`);
+    setPmConfirmed(null);
   };
 
   const handleConfirmProperty = () => {
     if (selectedProperty) {
-      onPropertyFound(selectedProperty);
+      onPropertyFound(selectedProperty, pmConfirmed === true);
     }
   };
 
   const handleSkip = () => {
-    // Allow users to skip property search for now
     toast.info('You can add your property later from the dashboard.');
     onPropertyFound(null);
   };
 
-  useEffect(() => {
-    // Auto-search when query changes (with debounce)
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        handleSearch();
-      } else {
-        setSearchResults([]);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  const isLoading = debouncedQuery.length >= 2 && searchResults === undefined;
 
   return (
     <div className={className}>
@@ -131,47 +104,36 @@ export function PropertySearchForm({ onPropertyFound, className }: PropertySearc
           {/* Search Input */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Search by property name, address, or location</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Enter property name, address, city, or ZIP code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button 
-                onClick={handleSearch}
-                disabled={isSearching || !searchQuery.trim()}
-              >
-                {isSearching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Enter property name, address, city, or ZIP code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Searching...
+              </div>
+            )}
           </div>
 
           {/* Search Results */}
-          {searchResults.length > 0 && (
+          {searchResults && searchResults.length > 0 && !selectedProperty && (
             <div className="space-y-4">
               <h3 className="font-medium">Search Results ({searchResults.length})</h3>
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {searchResults.map((property) => (
+                {searchResults.map((property: Property) => (
                   <div
                     key={property._id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedProperty?._id === property._id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className="p-4 border rounded-lg cursor-pointer transition-colors border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                     onClick={() => handlePropertySelect(property)}
                   >
                     <div className="flex items-start gap-4">
-                      {/* Property Image */}
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
                         {property.googleImageUrl ? (
                           <img
                             src={property.googleImageUrl}
@@ -182,23 +144,13 @@ export function PropertySearchForm({ onPropertyFound, className }: PropertySearc
                           <Building2 className="h-8 w-8 text-gray-400" />
                         )}
                       </div>
-
-                      {/* Property Details */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-lg">{property.propertyName}</h4>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {property.address}, {property.city}, {property.state} {property.zipCode}
-                            </p>
-                          </div>
-                          {selectedProperty?._id === property._id && (
-                            <CheckCircle className="h-5 w-5 text-blue-500" />
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-4 mt-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-lg">{property.propertyName}</h4>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {property.address}, {property.city}, {property.state} {property.zipCode}
+                        </p>
+                        <div className="flex items-center gap-4 mt-2 flex-wrap">
                           {property.googleRating && (
                             <div className="flex items-center gap-1">
                               <Star className="h-4 w-4 text-yellow-500 fill-current" />
@@ -209,29 +161,12 @@ export function PropertySearchForm({ onPropertyFound, className }: PropertySearc
                             <Users className="h-4 w-4 text-gray-400" />
                             <span className="text-sm">{property.totalUnits} units</span>
                           </div>
-                          {property.homeuScore && (
+                          {property.pmCompanyName && (
                             <Badge variant="secondary" className="text-xs">
-                              HomeU Score: {property.homeuScore}
+                              {property.pmCompanyName}
                             </Badge>
                           )}
                         </div>
-
-                        {property.amenities && property.amenities.length > 0 && (
-                          <div className="mt-2">
-                            <div className="flex flex-wrap gap-1">
-                              {property.amenities.slice(0, 3).map((amenity, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {amenity}
-                                </Badge>
-                              ))}
-                              {property.amenities.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{property.amenities.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -240,15 +175,83 @@ export function PropertySearchForm({ onPropertyFound, className }: PropertySearc
             </div>
           )}
 
-          {/* Selected Property */}
+          {/* No Results */}
+          {searchResults && searchResults.length === 0 && debouncedQuery.length >= 2 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No properties found. Try a different search term.
+            </p>
+          )}
+
+          {/* Selected Property + PM Confirmation */}
           {selectedProperty && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="font-medium text-green-800">Property Selected</span>
+            <div className="space-y-4">
+              {/* Property Summary */}
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-800">Property Selected</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProperty(null);
+                      setPmConfirmed(null);
+                    }}
+                    className="text-green-700 hover:text-green-900"
+                  >
+                    Change
+                  </Button>
+                </div>
+                <p className="text-green-700 font-medium">{selectedProperty.propertyName}</p>
+                <p className="text-sm text-green-600">
+                  {selectedProperty.address}, {selectedProperty.city}, {selectedProperty.state} {selectedProperty.zipCode}
+                </p>
               </div>
-              <p className="text-green-700">{selectedProperty.propertyName}</p>
-              <p className="text-sm text-green-600">{selectedProperty.address}, {selectedProperty.city}, {selectedProperty.state}</p>
+
+              {/* PM Confirmation */}
+              {selectedProperty.pmCompanyName ? (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <h4 className="font-medium text-blue-800 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Management Company on File
+                  </h4>
+                  <div className="text-sm text-blue-700 space-y-1">
+                    <p className="font-medium">{selectedProperty.pmCompanyName}</p>
+                    {selectedProperty.pmPhone && <p>Phone: {selectedProperty.pmPhone}</p>}
+                    {selectedProperty.pmEmail && <p>Email: {selectedProperty.pmEmail}</p>}
+                    {selectedProperty.pmContactName && <p>Contact: {selectedProperty.pmContactName}</p>}
+                  </div>
+                  <p className="text-sm text-blue-800 font-medium">Is this your management company?</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={pmConfirmed === true ? "default" : "outline"}
+                      onClick={() => setPmConfirmed(true)}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Yes, that's correct
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={pmConfirmed === false ? "default" : "outline"}
+                      onClick={() => setPmConfirmed(false)}
+                    >
+                      No, it's different
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      No management company on file for this property. You can enter it in the next step.
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -278,4 +281,4 @@ export function PropertySearchForm({ onPropertyFound, className }: PropertySearc
       </Card>
     </div>
   );
-} 
+}

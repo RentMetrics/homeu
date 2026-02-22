@@ -48,6 +48,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     managementCompanyConnected: false,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [pmConfirmedFromSearch, setPmConfirmedFromSearch] = useState(false);
 
   // Check if user has completed onboarding
   useEffect(() => {
@@ -99,10 +101,14 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     }
   };
 
-  const handlePropertyFound = (property: any) => {
+  const handlePropertyFound = (property: any, pmConfirmed?: boolean) => {
+    setSelectedProperty(property);
+    setPmConfirmedFromSearch(pmConfirmed === true);
     setOnboardingData(prev => ({ ...prev, propertyFound: true }));
     setCurrentStep('management-company');
-    toast.success('Property found! Now let\'s connect with your management company.');
+    if (property) {
+      toast.success('Property found! Now let\'s connect with your management company.');
+    }
   };
 
   const handleManagementCompanyConnected = (managementCompany: any) => {
@@ -244,6 +250,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
         return (
           <ManagementCompanyForm
             onManagementCompanyConnected={handleManagementCompanyConnected}
+            selectedProperty={selectedProperty}
             className="w-full"
           />
         );

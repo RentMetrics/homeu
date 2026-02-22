@@ -9,6 +9,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/api/webhooks(.*)',
   '/api/health',
+  '/pm-onboarding(.*)',
+  '/api/straddle/pm-bank-setup',
 ])
 
 const isIgnoredRoute = createRouteMatcher([

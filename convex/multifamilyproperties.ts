@@ -223,47 +223,54 @@ export const searchProperties = query({
   },
   handler: async (ctx, args) => {
     const { searchQuery, city, state, limit = 50 } = args;
-    
+
+    // When a text search query is provided, use the full-text search index
+    // This searches all 47K+ properties by propertyName
+    if (searchQuery && searchQuery.length >= 2) {
+      const filterFields: Record<string, string> = {};
+      if (city) filterFields.city = city;
+      if (state) filterFields.state = state;
+
+      const results = await ctx.db
+        .query("multifamilyproperties")
+        .withSearchIndex("search_name", (q) => {
+          let sq = q.search("propertyName", searchQuery);
+          if (city) sq = sq.eq("city", city);
+          if (state) sq = sq.eq("state", state);
+          return sq;
+        })
+        .take(limit);
+
+      return results;
+    }
+
+    // No text search - use regular indexed queries
     let properties;
-    
-    // Use indexed queries when possible
     if (city && state) {
       properties = await ctx.db
         .query("multifamilyproperties")
-        .withIndex("by_city_state", (q) => 
+        .withIndex("by_city_state", (q) =>
           q.eq("city", city).eq("state", state)
         )
         .take(limit);
     } else if (city) {
       properties = await ctx.db
         .query("multifamilyproperties")
-        .withIndex("by_city", (q) => 
+        .withIndex("by_city", (q) =>
           q.eq("city", city)
         )
         .take(limit);
     } else if (state) {
       properties = await ctx.db
         .query("multifamilyproperties")
-        .withIndex("by_state", (q) => 
+        .withIndex("by_state", (q) =>
           q.eq("state", state)
         )
         .take(limit);
     } else {
-      // If no specific filters, get a limited set
       properties = await ctx.db
         .query("multifamilyproperties")
         .take(limit);
-    }
-
-    // Apply search filter in memory if needed
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      properties = properties.filter(property =>
-        property.propertyName.toLowerCase().includes(query) ||
-        property.address.toLowerCase().includes(query) ||
-        property.city.toLowerCase().includes(query) ||
-        property.state.toLowerCase().includes(query)
-      );
     }
 
     return properties;
@@ -484,5 +491,134 @@ export const updatePropertyWithGoogleData = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// Get distinct states - uses a sample to extract unique states efficiently
+// (avoids reading all 47K+ docs which exceeds Convex limits)
+export const getDistinctStates = query({
+  args: {},
+  handler: async (ctx) => {
+    // US states list - since this is a national property database, use the standard set
+    // and verify each has at least one property via the index
+    const US_STATES = [
+      "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+      "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+      "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+      "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+      "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+    ];
+    const statesWithProperties: string[] = [];
+    for (const state of US_STATES) {
+      const property = await ctx.db
+        .query("multifamilyproperties")
+        .withIndex("by_state", (q) => q.eq("state", state))
+        .first();
+      if (property) statesWithProperties.push(state);
+    }
+    return statesWithProperties;
+  },
+});
+
+// Get cities for a given state (capped read to stay within Convex limits)
+export const getCitiesByState = query({
+  args: { state: v.string() },
+  handler: async (ctx, args) => {
+    const properties = await ctx.db
+      .query("multifamilyproperties")
+      .withIndex("by_state", (q) => q.eq("state", args.state))
+      .take(8000);
+    const cities = [...new Set(properties.map((p) => p.city))].sort();
+    return cities;
+  },
+});
+
+// Update PM contact info on a property
+export const updatePMContact = mutation({
+  args: {
+    propertyId: v.id("multifamilyproperties"),
+    pmCompanyName: v.optional(v.string()),
+    pmWebsite: v.optional(v.string()),
+    pmEmail: v.optional(v.string()),
+    pmPhone: v.optional(v.string()),
+    pmContactName: v.optional(v.string()),
+    pmContactTitle: v.optional(v.string()),
+    pmNotes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { propertyId, ...fields } = args;
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== undefined) patch[key] = value;
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(propertyId, patch);
+    }
+    return { success: true };
+  },
+});
+
+// Get property with associated market data
+export const getPropertyWithMarketData = query({
+  args: { propertyId: v.string() },
+  handler: async (ctx, args) => {
+    const property = await ctx.db
+      .query("multifamilyproperties")
+      .withIndex("by_propertyId", (q) => q.eq("propertyId", args.propertyId))
+      .first();
+    if (!property) return null;
+
+    const rentData = await ctx.db
+      .query("rentData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+    const occupancyData = await ctx.db
+      .query("occupancyData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+    const concessionData = await ctx.db
+      .query("concessionData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+
+    return { ...property, rentData, occupancyData, concessionData };
+  },
+});
+
+// Admin: Create a property manually (for smaller properties not in national DB)
+export const createProperty = mutation({
+  args: {
+    propertyName: v.string(),
+    address: v.string(),
+    city: v.string(),
+    state: v.string(),
+    zipCode: v.string(),
+    totalUnits: v.number(),
+    yearBuilt: v.number(),
+    averageUnitSize: v.number(),
+    pmCompanyName: v.optional(v.string()),
+    pmEmail: v.optional(v.string()),
+    pmPhone: v.optional(v.string()),
+    pmContactName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const propertyId = `MANUAL_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const id = await ctx.db.insert("multifamilyproperties", {
+      propertyId,
+      propertyName: args.propertyName,
+      address: args.address,
+      city: args.city,
+      state: args.state,
+      zipCode: args.zipCode,
+      totalUnits: args.totalUnits,
+      yearBuilt: args.yearBuilt,
+      averageUnitSize: args.averageUnitSize,
+      pmCompanyName: args.pmCompanyName,
+      pmEmail: args.pmEmail,
+      pmPhone: args.pmPhone,
+      pmContactName: args.pmContactName,
+      createdAt: Date.now(),
+    });
+    return { id, propertyId };
   },
 });

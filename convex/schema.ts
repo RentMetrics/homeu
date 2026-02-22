@@ -46,16 +46,50 @@ export default defineSchema({
     averageUnitSize: v.number(),
     googleRating: v.optional(v.number()),
     googleImageUrl: v.optional(v.string()),
+    googlePlaceId: v.optional(v.string()),
+    googlePhotos: v.optional(v.array(v.object({
+      photoReference: v.string(),
+      width: v.number(),
+      height: v.number(),
+    }))),
+    googleAttributionRequired: v.optional(v.boolean()),
+    googleLastVerified: v.optional(v.number()),
+    googleFormattedAddress: v.optional(v.string()),
+    googleUserRatingsTotal: v.optional(v.number()),
     homeuScore: v.optional(v.number()),
     scoreFactors: v.optional(v.array(v.string())),
     amenities: v.optional(v.array(v.string())),
+    lastRenovated: v.optional(v.number()),
+    propertyOwner: v.optional(v.string()),
+    pmCompanyName: v.optional(v.string()),
+    pmWebsite: v.optional(v.string()),
+    pmEmail: v.optional(v.string()),
+    pmPhone: v.optional(v.string()),
+    pmContactName: v.optional(v.string()),
+    pmContactTitle: v.optional(v.string()),
+    pmNotes: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_propertyId", ["propertyId"])
     .index("by_city", ["city"])
     .index("by_state", ["state"])
-    .index("by_city_state", ["city", "state"]),
+    .index("by_city_state", ["city", "state"])
+    .index("by_googlePlaceId", ["googlePlaceId"])
+    .searchIndex("search_name", {
+      searchField: "propertyName",
+      filterFields: ["city", "state"],
+    }),
   
+  // Property images (admin-uploaded)
+  propertyImages: defineTable({
+    propertyId: v.string(),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    description: v.optional(v.string()),
+    isPrimary: v.boolean(),
+    uploadedAt: v.number(),
+  }).index("by_propertyId", ["propertyId"]),
+
   // Monthly occupancy data
   occupancyData: defineTable({
     propertyId: v.string(),
@@ -166,6 +200,12 @@ export default defineSchema({
     isActive: v.boolean(),
     createdAt: v.number(),
     lastLogin: v.optional(v.number()),
+    straddleCustomerId: v.optional(v.string()),
+    straddleBankAccountId: v.optional(v.string()),
+    paymentOnboardingComplete: v.optional(v.boolean()),
+    paymentOnboardingDate: v.optional(v.number()),
+    payoutSchedule: v.optional(v.string()), // 'daily', 'weekly', 'biweekly', 'monthly'
+    defaultPayoutMethod: v.optional(v.string()), // 'ach', 'wire'
   }).index("by_workosUserId", ["workosUserId"])
     .index("by_organizationId", ["organizationId"])
     .index("by_email", ["email"]),
@@ -220,4 +260,16 @@ export default defineSchema({
     .index("by_propertyManagerId", ["propertyManagerId"])
     .index("by_month", ["month"])
     .index("by_status", ["status"]),
+
+  // PM onboarding tokens for bank setup
+  pmOnboardingTokens: defineTable({
+    propertyManagerId: v.id("propertyManagers"),
+    token: v.string(),
+    email: v.string(),
+    status: v.string(), // "pending" | "completed" | "expired"
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_token", ["token"])
+    .index("by_propertyManagerId", ["propertyManagerId"]),
 }); 
