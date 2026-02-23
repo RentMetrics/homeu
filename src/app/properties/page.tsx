@@ -103,6 +103,8 @@ export default function PropertiesPage() {
   const [minUnitsFilter, setMinUnitsFilter] = useState('all');
   const [geoLoaded, setGeoLoaded] = useState(false);
   const [profileFallbackApplied, setProfileFallbackApplied] = useState(false);
+  // Track whether we've determined location (geo, profile, or gave up)
+  const [locationReady, setLocationReady] = useState(false);
 
   // Debounce search query to prevent re-querying on every keystroke
   useEffect(() => {
@@ -130,6 +132,7 @@ export default function PropertiesPage() {
               const loc = `${data.city}, ${data.state}`;
               setSearchQuery(loc);
               setDebouncedQuery(loc);
+              setLocationReady(true);
             }
           }
         } catch (error) {
@@ -150,18 +153,34 @@ export default function PropertiesPage() {
       setSearchQuery(loc);
       setDebouncedQuery(loc);
       setProfileFallbackApplied(true);
+      setLocationReady(true);
     }
   }, [geoLoaded, searchQuery, profileFallbackApplied, userProfile]);
+
+  // Mark location as ready once geo is done and profile has been checked
+  // (even if neither provided a location — user can search manually)
+  useEffect(() => {
+    if (geoLoaded && !locationReady && userProfile !== undefined) {
+      // Both geo and profile have been checked, neither had a location
+      // Don't auto-set locationReady if profile is still loading (undefined)
+      if (!userProfile?.city?.trim() || !userProfile?.state?.trim()) {
+        setLocationReady(true);
+      }
+    }
+  }, [geoLoaded, locationReady, userProfile]);
 
   // Parse the debounced search query (not the live input)
   const { city, state } = parseSearchQuery(debouncedQuery);
 
-  // Get properties from Convex using the efficient location-based search
-  const searchResult = useQuery(api.multifamilyproperties.searchPropertiesByLocation, {
-    city: city || undefined,
-    state: state || undefined,
-    limit: 100
-  });
+  // Only query when we have an actual location — skip when empty to avoid
+  // showing random properties (e.g. Ohio) while waiting for geo/profile
+  const hasSearchCriteria = !!(city || state);
+  const searchResult = useQuery(
+    api.multifamilyproperties.searchPropertiesByLocation,
+    hasSearchCriteria
+      ? { city: city || undefined, state: state || undefined, limit: 100 }
+      : "skip"
+  );
 
   // Filter properties based on additional criteria
   const filteredProperties = searchResult?.filter((property: any) => {
@@ -199,10 +218,12 @@ export default function PropertiesPage() {
     return map;
   }, [uploadedImagesArr]);
 
-  // Only show inline loading while Convex query is in flight
-  const isSearching = searchResult === undefined;
+  // Show inline loading while Convex query is in flight
+  const isSearching = hasSearchCriteria && searchResult === undefined;
+  // Still waiting for geo + profile check
+  const isDetectingLocation = !locationReady;
 
-  if (!geoLoaded) {
+  if (isDetectingLocation) {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="text-center py-12">
@@ -394,25 +415,33 @@ export default function PropertiesPage() {
         })}
       </div>
 
-      {filteredProperties.length === 0 && !isSearching && (
+      {!hasSearchCriteria && !isSearching && (
+        <div className="text-center py-12">
+          <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-gray-900">Search for properties</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Enter a city and state above to find properties (e.g., &quot;Salt Lake City, UT&quot;)
+          </p>
+        </div>
+      )}
+
+      {hasSearchCriteria && filteredProperties.length === 0 && !isSearching && (
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Try adjusting your search. You can search by city, state, or property name.
+            No properties found for &quot;{searchQuery}&quot;. Try a different city or state.
           </p>
-          {searchQuery && (
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => {
-                setSearchQuery('');
-                setDebouncedQuery('');
-              }}
-            >
-              Clear Search
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => {
+              setSearchQuery('');
+              setDebouncedQuery('');
+            }}
+          >
+            Clear Search
+          </Button>
         </div>
       )}
 

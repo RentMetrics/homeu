@@ -56,6 +56,14 @@ export default clerkMiddleware(
       response.headers.set(key, value)
     })
 
+    // Prevent aggressive browser caching of HTML pages
+    // (static assets under /_next/static/ are excluded by the matcher config)
+    if (!req.nextUrl.pathname.startsWith('/api/')) {
+      response.headers.set('Cache-Control', 'private, no-store, no-cache, must-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+    }
+
     // Block suspicious user agents
     const userAgent = req.headers.get('user-agent') || ''
     const suspiciousPatterns = [
