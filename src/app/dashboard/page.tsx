@@ -92,6 +92,13 @@ export default function DashboardPage() {
     );
   }, []);
 
+  // Fallback: use user's profile address when geolocation fails or is denied
+  useEffect(() => {
+    if (!geoLoading && !userLocation && userProfile?.city?.trim() && userProfile?.state?.trim()) {
+      setUserLocation({ city: userProfile.city, state: userProfile.state });
+    }
+  }, [geoLoading, userLocation, userProfile]);
+
   // Query nearby properties from Convex based on detected location
   const nearbyProperties = useQuery(
     api.multifamilyproperties.searchPropertiesByLocation,
@@ -142,6 +149,12 @@ export default function DashboardPage() {
     (userLocation && nearbyProperties === undefined) ||
     (userLocation && nearbyProperties !== undefined && nearbyProperties.length === 0 && stateProperties === undefined) ||
     (!userLocation && !geoLoading && fallbackProperties === undefined);
+
+  // Get user's reward points for dashboard tile
+  const userPoints = useQuery(
+    api.rewards.getUserPoints,
+    user?.id ? { userId: user.id } : "skip"
+  );
 
   // Placeholder for lease data until Convex integration
   const leaseData = null;
@@ -231,25 +244,34 @@ export default function DashboardPage() {
         {/* Rewards Card */}
         <Link href="/dashboard/rewards" className="block">
           <div className="p-6 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow h-full">
-            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-blue-100 mb-4">
-              <Gift className="h-6 w-6 text-blue-600" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-blue-100">
+                <Gift className="h-6 w-6 text-blue-600" />
+              </div>
+              {userPoints && (
+                <span className="text-2xl font-bold text-blue-600">{userPoints.points} pts</span>
+              )}
             </div>
             <h3 className="text-lg font-bold mb-1">Rewards</h3>
-            <p className="text-gray-500 text-sm mb-4">Earn points for rent payments and referrals</p>
+            <p className="text-gray-500 text-sm mb-4">
+              {userPoints
+                ? `You have ${userPoints.points} points. Redeem for rewards!`
+                : "Earn points for rent payments and referrals"}
+            </p>
             <span className="flex items-center text-blue-600 font-medium text-sm">
-              Get More Points <ArrowRight className="h-4 w-4 ml-1" />
+              {userPoints && userPoints.points > 0 ? "View Rewards" : "Get More Points"} <ArrowRight className="h-4 w-4 ml-1" />
             </span>
           </div>
         </Link>
 
-        {/* Pay Rent Card */}
+        {/* Payments Card */}
         <Link href="/dashboard/payments" className="block">
           <div className="p-6 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow h-full">
             <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-green-100 mb-4">
               <CreditCard className="h-6 w-6 text-green-600" />
             </div>
-            <h3 className="text-lg font-bold mb-1">Pay Rent</h3>
-            <p className="text-gray-500 text-sm mb-4">Amount Due: $1,750.00</p>
+            <h3 className="text-lg font-bold mb-1">Payments</h3>
+            <p className="text-gray-500 text-sm mb-4">Total Due: $2,000.00</p>
             <span className="flex items-center text-green-600 font-medium text-sm">
               View Statement <ArrowRight className="h-4 w-4 ml-1" />
             </span>

@@ -57,7 +57,7 @@ export default function PaymentsPage() {
   // Combine traditional and crypto payment history
   const allPayments = [
     ...mockHistory.map(p => ({ ...p, type: 'traditional' })),
-    ...(cryptoPayments || []).map(p => ({
+    ...(cryptoPayments || []).map((p: any) => ({
       date: new Date(p.createdAt).toISOString().split('T')[0],
       amount: parseFloat(p.amount),
       status: p.status === 'confirmed' ? 'Paid' :

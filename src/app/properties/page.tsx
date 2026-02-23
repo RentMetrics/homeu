@@ -198,16 +198,16 @@ export default function PropertiesPage() {
     return map;
   }, [uploadedImagesArr]);
 
-  // Show loading state while data is being fetched or geo is detecting
-  const isLoading = !geoLoaded || searchResult === undefined ||
+  // Only show full-page loading on initial geo detection
+  const isSearching = searchResult === undefined ||
     (city && state && searchResult !== undefined && searchResult.length === 0 && stateResult === undefined);
 
-  if (isLoading) {
+  if (!geoLoaded) {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="text-center py-12">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
-          <p className="mt-4 text-gray-500">{!geoLoaded ? 'Detecting your location...' : 'Loading properties...'}</p>
+          <p className="mt-4 text-gray-500">Detecting your location...</p>
         </div>
       </div>
     );
@@ -219,8 +219,11 @@ export default function PropertiesPage() {
         <div>
           <h1 className="text-3xl font-bold">Properties</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
-            {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
+            {isSearching
+              ? 'Searching...'
+              : <>{filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
+                {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}</>
+            }
           </p>
         </div>
         <Link href="/dashboard">
@@ -240,6 +243,9 @@ export default function PropertiesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+              )}
             </div>
           </div>
         </div>
@@ -270,6 +276,12 @@ export default function PropertiesPage() {
       </div>
 
       {/* Property Listings */}
+      {isSearching && filteredProperties.length === 0 && (
+        <div className="text-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto" />
+          <p className="mt-3 text-sm text-gray-500">Loading properties...</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProperties.map((property: any) => {
           // Prioritize uploaded images over Google Places photos
@@ -382,7 +394,7 @@ export default function PropertiesPage() {
         })}
       </div>
 
-      {filteredProperties.length === 0 && (
+      {filteredProperties.length === 0 && !isSearching && (
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
@@ -393,7 +405,10 @@ export default function PropertiesPage() {
             <Button
               variant="outline"
               className="mt-4"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                setDebouncedQuery('');
+              }}
             >
               Clear Search
             </Button>
