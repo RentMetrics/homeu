@@ -322,35 +322,11 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <Label>Theme</Label>
-                  <p className="text-sm text-gray-500 mb-3">Choose your preferred theme</p>
-                  <Select
-                    value={settings.theme}
-                    onValueChange={(value) => handleSettingChange("theme", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">
-                        <div className="flex items-center gap-2">
-                          <Sun className="h-4 w-4" />
-                          Light
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="dark">
-                        <div className="flex items-center gap-2">
-                          <Moon className="h-4 w-4" />
-                          Dark
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="system">
-                        <div className="flex items-center gap-2">
-                          <Monitor className="h-4 w-4" />
-                          System
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-sm text-gray-500 mb-3">HomeU uses a light theme for the best experience.</p>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
+                    <Sun className="h-4 w-4 text-yellow-500" />
+                    <span className="text-sm font-medium">Light Mode</span>
+                  </div>
                 </div>
 
                 <div>

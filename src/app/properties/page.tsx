@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Home, Building2, SlidersHorizontal, Star, MapPin, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Home, Building2, SlidersHorizontal, Star, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,7 +46,7 @@ const getScoreRating = (score: number) => {
 // Helper function to parse search query for city and state
 const parseSearchQuery = (query: string) => {
   const trimmed = query.trim();
-  
+
   // Check for "City, State" format
   const cityStateMatch = trimmed.match(/^(.+?),\s*([A-Za-z]{2})$/);
   if (cityStateMatch) {
@@ -55,7 +55,7 @@ const parseSearchQuery = (query: string) => {
       state: cityStateMatch[2].trim().toUpperCase()
     };
   }
-  
+
   // Check for just state (2 letter code)
   const stateMatch = trimmed.match(/^[A-Za-z]{2}$/);
   if (stateMatch) {
@@ -64,7 +64,7 @@ const parseSearchQuery = (query: string) => {
       state: trimmed.toUpperCase()
     };
   }
-  
+
   // Check for full state name
   const stateNames: { [key: string]: string } = {
     'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
@@ -78,7 +78,7 @@ const parseSearchQuery = (query: string) => {
     'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
     'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
   };
-  
+
   const lowerQuery = trimmed.toLowerCase();
   if (stateNames[lowerQuery]) {
     return {
@@ -86,7 +86,7 @@ const parseSearchQuery = (query: string) => {
       state: stateNames[lowerQuery]
     };
   }
-  
+
   // If no specific pattern, treat as city search
   return {
     city: trimmed,
@@ -98,6 +98,36 @@ export default function PropertiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [yearBuiltFilter, setYearBuiltFilter] = useState('all');
   const [minUnitsFilter, setMinUnitsFilter] = useState('all');
+  const [geoLoaded, setGeoLoaded] = useState(false);
+
+  // Auto-detect user location and pre-fill search
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoLoaded(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const res = await fetch(
+            `/api/geocode?lat=${position.coords.latitude}&lng=${position.coords.longitude}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.city && data.state) {
+              setSearchQuery(`${data.city}, ${data.state}`);
+            }
+          }
+        } catch (error) {
+          console.error("Geocoding error:", error);
+        } finally {
+          setGeoLoaded(true);
+        }
+      },
+      () => setGeoLoaded(true),
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }, []);
 
   // Parse the search query
   const { city, state } = parseSearchQuery(searchQuery);
@@ -109,75 +139,58 @@ export default function PropertiesPage() {
     limit: 100
   });
 
-  // Get all properties for filters (limited to avoid hitting limits)
-  const allProperties = useQuery(api.multifamilyproperties.getAllProperties, {
-    limit: 1000
-  });
-
-  // Debug: Get sample properties to see data format
-  const sampleProperties = useQuery(api.multifamilyproperties.getSampleProperties);
-  
-  // Debug: Get unique locations
-  const uniqueLocations = useQuery(api.multifamilyproperties.getUniqueLocations);
-
   // Filter properties based on additional criteria
-  const filteredProperties = searchResult?.filter(property => {
+  const filteredProperties = searchResult?.filter((property: any) => {
     if (!property) return false;
-    
-    const matchesYearBuilt = yearBuiltFilter === 'all' || 
+
+    const matchesYearBuilt = yearBuiltFilter === 'all' ||
       (yearBuiltFilter === 'new' && property.yearBuilt >= 2020) ||
       (yearBuiltFilter === 'recent' && property.yearBuilt >= 2010 && property.yearBuilt < 2020) ||
       (yearBuiltFilter === 'older' && property.yearBuilt < 2010);
-    
-    const matchesMinUnits = minUnitsFilter === 'all' || 
+
+    const matchesMinUnits = minUnitsFilter === 'all' ||
       (minUnitsFilter === 'small' && property.totalUnits < 50) ||
       (minUnitsFilter === 'medium' && property.totalUnits >= 50 && property.totalUnits < 200) ||
       (minUnitsFilter === 'large' && property.totalUnits >= 200);
-    
+
     return matchesYearBuilt && matchesMinUnits;
   }) || [];
 
-  // Get unique cities and states for display
-  const cities = [...new Set(allProperties?.map(p => p.city).filter(Boolean) || [])].sort();
-  const states = [...new Set(allProperties?.map(p => p.state).filter(Boolean) || [])].sort();
-
-  // Show loading state while data is being fetched
-  if (searchResult === undefined || allProperties === undefined) {
+  // Show loading state while data is being fetched or geo is detecting
+  if (searchResult === undefined || !geoLoaded) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-500">Loading properties...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
+          <p className="mt-4 text-gray-500">{!geoLoaded ? 'Detecting your location...' : 'Loading properties...'}</p>
         </div>
       </div>
     );
   }
 
-  // Debug output
-  console.log("Search query:", searchQuery);
-  console.log("Parsed city:", city);
-  console.log("Parsed state:", state);
-  console.log("Search result count:", searchResult?.length);
-  console.log("Sample properties:", sampleProperties);
-
   return (
     <div className="max-w-6xl mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold mb-2">Properties</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Properties</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
+            {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
+          </p>
+        </div>
         <Link href="/dashboard">
-          <Button variant="outline" className="ml-4">Back to Dashboard</Button>
+          <Button variant="outline">Back to Dashboard</Button>
         </Link>
       </div>
+
       {/* Search Section */}
       <div className="mb-8 space-y-4">
-        
-
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Search by city, state, property name, or address (e.g., 'Salt Lake City, UT' or 'Texas')"
+                placeholder="Search by city, state, or property name (e.g., 'Salt Lake City, UT')"
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -213,134 +226,128 @@ export default function PropertiesPage() {
 
       {/* Property Listings */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProperties.map((property) => (
-          <Card key={property._id} className="overflow-hidden">
-            <div className="relative h-48">
-              {(() => {
-                const photoRef = property.googlePhotos?.[0]?.photoReference;
-                const imgSrc = photoRef
-                  ? `/api/places-photo?ref=${encodeURIComponent(photoRef)}&maxwidth=600`
-                  : property.googleImageUrl || null;
-                return imgSrc ? (
+        {filteredProperties.map((property: any) => {
+          // Compute image URL outside the JSX so it's accessible for fallback logic
+          const imgSrc = (property.propertyName && property.city && property.state)
+            ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
+            : null;
+
+          return (
+            <Card key={property._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative h-48">
+                {imgSrc ? (
                   <img
                     src={imgSrc}
                     alt={property.propertyName || 'Property'}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const placeholder = target.nextElementSibling as HTMLElement;
+                      if (placeholder) placeholder.style.display = 'flex';
+                    }}
                   />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <Building2 className="h-12 w-12 text-gray-400" />
+                ) : null}
+                <div className={`w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center ${imgSrc ? 'hidden' : ''}`}>
+                  <Building2 className="h-10 w-10 text-blue-300 mb-2" />
+                  <span className="text-xs text-blue-400 font-medium">{property.totalUnits || 0} Units</span>
+                </div>
+                <Badge className="absolute top-2 right-2">
+                  {property.totalUnits || 0} units
+                </Badge>
+                {property.googleRating && (
+                  <div className="absolute top-2 left-2 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                    <span className="text-sm font-medium">{property.googleRating}</span>
                   </div>
-                );
-              })()}
-              <Badge className="absolute top-2 right-2">
-                {property.totalUnits || 0} units
-              </Badge>
-              {property.googleRating && (
-                <div className="absolute top-2 left-2 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1">
-                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                  <span className="text-sm font-medium">{property.googleRating}</span>
-                </div>
-              )}
-            </div>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-xl">{property.propertyName || 'Unnamed Property'}</CardTitle>
-                  <CardDescription className="flex items-center gap-1 text-sm">
-                    <MapPin className="h-4 w-4" />
-                    {property.city || 'Unknown City'}, {property.state || 'Unknown State'}
-                  </CardDescription>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-1">
-                    <Star className={`h-5 w-5 ${getScoreColor(property.homeuScore || 0)}`} />
-                    <span className={`text-lg font-bold ${getScoreColor(property.homeuScore || 0)}`}>
-                      {property.homeuScore || 'N/A'}
+                )}
+              </div>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-xl">{property.propertyName || 'Unnamed Property'}</CardTitle>
+                    <CardDescription className="flex items-center gap-1 text-sm">
+                      <MapPin className="h-4 w-4" />
+                      {property.city || 'Unknown City'}, {property.state || 'Unknown State'}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-1">
+                      <Star className={`h-5 w-5 ${getScoreColor(property.homeuScore || 0)}`} />
+                      <span className={`text-lg font-bold ${getScoreColor(property.homeuScore || 0)}`}>
+                        {property.homeuScore || 'N/A'}
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {property.homeuScore ? getScoreRating(property.homeuScore) : 'Not rated'}
                     </span>
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {property.homeuScore ? getScoreRating(property.homeuScore) : 'Not rated'}
-                  </span>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Building2 className="h-4 w-4" />
-                    <span>{property.totalUnits || 0} units</span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Building2 className="h-4 w-4" />
+                      <span>{property.totalUnits || 0} units</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>{property.yearBuilt || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span>{property.averageUnitSize || 0} sqft avg</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{property.yearBuilt || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    <span>{property.averageUnitSize || 0} sqft avg</span>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600">{property.address || 'Address not available'}</p>
-                {property.amenities && property.amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {property.amenities.slice(0, 3).map((amenity: string, index: number) => (
-                      <Badge key={index} variant="secondary">
-                        {amenity}
-                      </Badge>
-                    ))}
-                    {property.amenities.length > 3 && (
-                      <Badge variant="secondary">+{property.amenities.length - 3} more</Badge>
-                    )}
-                  </div>
-                )}
-                {property.scoreFactors && property.scoreFactors.length > 0 && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    <p className="font-medium">HomeU AI Score Factors:</p>
-                    <ul className="list-disc list-inside">
-                      {property.scoreFactors.slice(0, 2).map((factor: string, index: number) => (
-                        <li key={index}>{factor}</li>
+                  <p className="text-sm text-gray-600">{property.address || 'Address not available'}</p>
+                  {property.amenities && property.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {property.amenities.slice(0, 3).map((amenity: string, index: number) => (
+                        <Badge key={index} variant="secondary">
+                          {amenity}
+                        </Badge>
                       ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full">View Details</Button>
-            </CardFooter>
-          </Card>
-        ))}
+                      {property.amenities.length > 3 && (
+                        <Badge variant="secondary">+{property.amenities.length - 3} more</Badge>
+                      )}
+                    </div>
+                  )}
+                  {property.scoreFactors && property.scoreFactors.length > 0 && (
+                    <div className="mt-2 text-sm text-gray-500">
+                      <p className="font-medium">HomeU AI Score Factors:</p>
+                      <ul className="list-disc list-inside">
+                        {property.scoreFactors.slice(0, 2).map((factor: string, index: number) => (
+                          <li key={index}>{factor}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full">View Details</Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredProperties.length === 0 && (
         <div className="text-center py-12">
+          <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Try adjusting your search criteria. You can search by:
+            Try adjusting your search. You can search by city, state, or property name.
           </p>
-          <ul className="mt-2 text-sm text-gray-500 list-disc list-inside">
-            <li>City name (e.g., "Salt Lake City")</li>
-            <li>State name (e.g., "Utah" or "UT")</li>
-            <li>City and state (e.g., "Salt Lake City, UT")</li>
-            <li>Property name or address</li>
-          </ul>
-          {uniqueLocations && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium">Available locations in database:</p>
-              <p className="text-sm text-blue-700">Cities: {uniqueLocations.cities.join(', ')}</p>
-              <p className="text-sm text-blue-700">States: {uniqueLocations.states.join(', ')}</p>
-              <p className="text-sm text-blue-600 mt-2">Try searching for one of these locations!</p>
-            </div>
-          )}
           {searchQuery && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Search attempted:</strong> "{searchQuery}"
-              </p>
-              {city && <p className="text-sm text-gray-600">City: {city}</p>}
-              {state && <p className="text-sm text-gray-600">State: {state}</p>}
-            </div>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => setSearchQuery('')}
+            >
+              Clear Search
+            </Button>
           )}
         </div>
       )}
@@ -348,13 +355,9 @@ export default function PropertiesPage() {
       {filteredProperties.length > 0 && (
         <div className="mt-8 text-center text-sm text-gray-500">
           Showing {filteredProperties.length} properties
-          {searchQuery && (
-            <span className="ml-2">
-              for "{searchQuery}"
-            </span>
-          )}
+          {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
         </div>
       )}
     </div>
   );
-} 
+}

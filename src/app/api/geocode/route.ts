@@ -16,12 +16,57 @@ export async function GET(req: Request) {
   }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_1&key=${GOOGLE_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    // Use Google Places API (New) searchNearby to find the locality
+    const searchRes = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_API_KEY,
+        "X-Goog-FieldMask": "places.formattedAddress,places.addressComponents",
+      },
+      body: JSON.stringify({
+        includedTypes: ["locality"],
+        maxResultCount: 1,
+        locationRestriction: {
+          circle: {
+            center: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+            radius: 10000.0,
+          },
+        },
+      }),
+    });
 
-    if (data.results && data.results.length > 0) {
-      const components = data.results[0].address_components;
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      const components = data.places?.[0]?.addressComponents;
+
+      if (components) {
+        let city = "";
+        let state = "";
+
+        for (const comp of components) {
+          if (comp.types?.includes("locality")) {
+            city = comp.longText || comp.shortText || "";
+          }
+          if (comp.types?.includes("administrative_area_level_1")) {
+            state = comp.shortText || "";
+          }
+        }
+
+        if (city && state) {
+          return NextResponse.json({ city, state });
+        }
+      }
+    }
+
+    // Fallback: try legacy Geocoding API (in case it's enabled)
+    const geocodeRes = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_1&key=${GOOGLE_API_KEY}`
+    );
+    const geocodeData = await geocodeRes.json();
+
+    if (geocodeData.results && geocodeData.results.length > 0) {
+      const components = geocodeData.results[0].address_components;
       let city = "";
       let state = "";
 
