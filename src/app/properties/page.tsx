@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from 'convex/react';
 import { api } from '@convex/_generated/api';
 import Link from "next/link";
+import { useUserSync } from '@/hooks/useUserSync';
 
 // Force dynamic rendering to prevent SSR issues with Convex
 export const dynamic = 'force-dynamic';
@@ -95,11 +96,13 @@ const parseSearchQuery = (query: string) => {
 };
 
 export default function PropertiesPage() {
+  const { userProfile } = useUserSync();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [yearBuiltFilter, setYearBuiltFilter] = useState('all');
   const [minUnitsFilter, setMinUnitsFilter] = useState('all');
   const [geoLoaded, setGeoLoaded] = useState(false);
+  const [profileFallbackApplied, setProfileFallbackApplied] = useState(false);
 
   // Debounce search query to prevent re-querying on every keystroke
   useEffect(() => {
@@ -140,6 +143,16 @@ export default function PropertiesPage() {
     );
   }, []);
 
+  // Fallback: use user's profile city/state when geolocation fails
+  useEffect(() => {
+    if (geoLoaded && !searchQuery && !profileFallbackApplied && userProfile?.city?.trim() && userProfile?.state?.trim()) {
+      const loc = `${userProfile.city}, ${userProfile.state}`;
+      setSearchQuery(loc);
+      setDebouncedQuery(loc);
+      setProfileFallbackApplied(true);
+    }
+  }, [geoLoaded, searchQuery, profileFallbackApplied, userProfile]);
+
   // Parse the debounced search query (not the live input)
   const { city, state } = parseSearchQuery(debouncedQuery);
 
@@ -150,20 +163,8 @@ export default function PropertiesPage() {
     limit: 100
   });
 
-  // State-level fallback when city+state search returns empty
-  const stateResult = useQuery(
-    api.multifamilyproperties.searchPropertiesByLocation,
-    city && state && searchResult !== undefined && searchResult.length === 0
-      ? { state: state, limit: 100 }
-      : "skip"
-  );
-
-  // Use state results as fallback
-  const effectiveResult = (searchResult && searchResult.length > 0) ? searchResult :
-    (stateResult && stateResult.length > 0) ? stateResult : searchResult;
-
   // Filter properties based on additional criteria
-  const filteredProperties = effectiveResult?.filter((property: any) => {
+  const filteredProperties = searchResult?.filter((property: any) => {
     if (!property) return false;
 
     const matchesYearBuilt = yearBuiltFilter === 'all' ||
@@ -198,9 +199,8 @@ export default function PropertiesPage() {
     return map;
   }, [uploadedImagesArr]);
 
-  // Only show full-page loading on initial geo detection
-  const isSearching = searchResult === undefined ||
-    (city && state && searchResult !== undefined && searchResult.length === 0 && stateResult === undefined);
+  // Only show inline loading while Convex query is in flight
+  const isSearching = searchResult === undefined;
 
   if (!geoLoaded) {
     return (
