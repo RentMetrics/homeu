@@ -14,7 +14,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://homeu-4pkltozzu-curtis-holders-projects.vercel.app"
+          "value": "https://www.homeu.co"
         },
         {
           "key": "Access-Control-Allow-Methods",
@@ -43,7 +43,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     }
