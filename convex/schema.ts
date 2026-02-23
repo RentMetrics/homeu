@@ -261,6 +261,19 @@ export default defineSchema({
     .index("by_month", ["month"])
     .index("by_status", ["status"]),
 
+  // Saved renter applications (user-submitted lease applications)
+  savedApplications: defineTable({
+    userId: v.string(),
+    formData: v.any(),
+    coApplicants: v.any(),
+    occupants: v.any(),
+    vehicles: v.any(),
+    incomeSources: v.any(),
+    status: v.string(), // 'draft', 'submitted'
+    submittedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   // PM onboarding tokens for bank setup
   pmOnboardingTokens: defineTable({
     propertyManagerId: v.id("propertyManagers"),

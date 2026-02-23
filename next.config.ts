@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+            value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.homeu.co https://*.clerk.accounts.dev https://challenges.cloudflare.com https://js.stripe.com https://maps.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.clerk.accounts.dev https://clerk.homeu.co https://api.convex.cloud https://straddle.com https://api.straddle.com wss://*.convex.cloud https://maps.googleapis.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.homeu.co https://*.clerk.accounts.dev https://challenges.cloudflare.com https://js.stripe.com https://maps.googleapis.com https://plugin.argyle.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.clerk.accounts.dev https://clerk.homeu.co https://api.convex.cloud https://straddle.com https://api.straddle.com wss://*.convex.cloud https://maps.googleapis.com https://*.argyle.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;",
           },
         ],
       },

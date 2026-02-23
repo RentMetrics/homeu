@@ -60,15 +60,13 @@ export function Navigation({ children }: NavigationProps) {
       >
         <div className="flex flex-col h-full">
           <div className="flex h-16 items-center justify-center border-b border-gray-800">
-            <Link href="/dashboard" className="text-xl font-bold text-white flex items-center gap-2">
-              <Image 
-                src="/HomeU.svg" 
-                alt="HomeU Logo" 
-                width={32} 
-                height={32} 
-                className="text-white"
+            <Link href="/dashboard" className="flex items-center">
+              <Image
+                src="/HomeU_sidebar.svg"
+                alt="HomeU Logo"
+                width={120}
+                height={28}
               />
-              HomeU
             </Link>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">

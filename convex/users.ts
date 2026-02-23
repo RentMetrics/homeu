@@ -178,3 +178,60 @@ export const getUserCount = query({
     return users.length;
   },
 });
+
+// Save or update a renter's lease application
+export const saveApplication = mutation({
+  args: {
+    userId: v.string(),
+    formData: v.any(),
+    coApplicants: v.any(),
+    occupants: v.any(),
+    vehicles: v.any(),
+    incomeSources: v.any(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("savedApplications")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+
+    const now = Date.now();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        formData: args.formData,
+        coApplicants: args.coApplicants,
+        occupants: args.occupants,
+        vehicles: args.vehicles,
+        incomeSources: args.incomeSources,
+        status: "submitted",
+        submittedAt: now,
+        updatedAt: now,
+      });
+      return existing._id;
+    }
+
+    return await ctx.db.insert("savedApplications", {
+      userId: args.userId,
+      formData: args.formData,
+      coApplicants: args.coApplicants,
+      occupants: args.occupants,
+      vehicles: args.vehicles,
+      incomeSources: args.incomeSources,
+      status: "submitted",
+      submittedAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+// Get a saved application for a user
+export const getSavedApplication = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("savedApplications")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+  },
+});

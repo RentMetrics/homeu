@@ -216,17 +216,23 @@ export default function PropertiesPage() {
         {filteredProperties.map((property) => (
           <Card key={property._id} className="overflow-hidden">
             <div className="relative h-48">
-              {property.googleImageUrl ? (
-                <img
-                  src={property.googleImageUrl}
-                  alt={property.propertyName || 'Property'}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <Building2 className="h-12 w-12 text-gray-400" />
-                </div>
-              )}
+              {(() => {
+                const photoRef = property.googlePhotos?.[0]?.photoReference;
+                const imgSrc = photoRef
+                  ? `/api/places-photo?ref=${encodeURIComponent(photoRef)}&maxwidth=600`
+                  : property.googleImageUrl || null;
+                return imgSrc ? (
+                  <img
+                    src={imgSrc}
+                    alt={property.propertyName || 'Property'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <Building2 className="h-12 w-12 text-gray-400" />
+                  </div>
+                );
+              })()}
               <Badge className="absolute top-2 right-2">
                 {property.totalUnits || 0} units
               </Badge>

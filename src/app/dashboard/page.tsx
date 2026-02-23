@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, InfoIcon, Home, Search, AlertCircle } from "lucide-react";
+import { ArrowRight, Calendar, InfoIcon, Home, Search, AlertCircle, MapPin, Building2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { useUserSync } from '@/hooks/useUserSync';
 import VerificationModal from '@/components/verification/VerificationModal';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 // Helper function to calculate profile completeness
 function getProfileCompleteness(profile: any): number {
@@ -39,20 +41,68 @@ export default function DashboardPage() {
   } = useVerification();
   
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ city: string; state: string } | null>(null);
+  const [geoLoading, setGeoLoading] = useState(true);
 
   // Check if user needs onboarding
   useEffect(() => {
     if (user && isLoaded) {
-      // Check if user has completed onboarding
       const onboardingComplete = user.unsafeMetadata?.onboardingComplete;
-      const isNewUser = !onboardingComplete;
+      const onboardingSeen = user.unsafeMetadata?.onboardingSeen;
 
-      if (isNewUser) {
-        // Show onboarding modal for new users
+      if (!onboardingComplete && !onboardingSeen) {
         setShowOnboardingModal(true);
       }
     }
   }, [user, isLoaded]);
+
+  // Detect user location via browser geolocation
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const res = await fetch(
+            `/api/geocode?lat=${position.coords.latitude}&lng=${position.coords.longitude}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.city && data.state) {
+              setUserLocation({ city: data.city, state: data.state });
+            }
+          }
+        } catch (error) {
+          console.error("Geocoding error:", error);
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      () => {
+        setGeoLoading(false);
+      },
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }, []);
+
+  // Query nearby properties from Convex based on detected location
+  const nearbyProperties = useQuery(
+    api.multifamilyproperties.searchPropertiesByLocation,
+    userLocation
+      ? { city: userLocation.city, state: userLocation.state, limit: 6 }
+      : "skip"
+  );
+
+  // Fallback: get some properties if location isn't available
+  const fallbackProperties = useQuery(
+    api.multifamilyproperties.getAllProperties,
+    !userLocation && !geoLoading ? { limit: 6 } : "skip"
+  );
+
+  const displayProperties = nearbyProperties || fallbackProperties || [];
 
   // Placeholder for lease data until Convex integration
   const leaseData = null;
@@ -71,8 +121,8 @@ export default function DashboardPage() {
                   Become a verified renter to unlock all HomeU features and faster rental approvals.
                 </p>
               </div>
-              <Button 
-                onClick={() => setShowVerificationModal(true)}
+              <Button
+                onClick={() => setShowOnboardingModal(true)}
                 size="sm"
                 className="bg-orange-600 hover:bg-orange-700"
               >
@@ -207,89 +257,86 @@ export default function DashboardPage() {
       </div>
 
 
-      {/* Property Listings Section */}
+      {/* Nearby Property Listings Section */}
       <div className="bg-white rounded-lg border shadow p-6 mt-8">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold">Find Properties to Lease</h3>
-          <Link 
-            href="/dashboard/properties" 
+          <div>
+            <h3 className="text-xl font-bold">Properties Near You</h3>
+            {userLocation && (
+              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                <MapPin className="h-3 w-3" />
+                {userLocation.city}, {userLocation.state}
+              </p>
+            )}
+          </div>
+          <Link
+            href="/properties"
             className="flex items-center text-blue-600 font-medium"
           >
             View all properties
           </Link>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Property Card 1 */}
-          <div className="rounded-lg overflow-hidden border shadow-sm">
-            <div className="relative h-48">
-              <Image 
-                src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80" 
-                alt="Apartment Building" 
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-bold">Modern Downtown Loft</h4>
-                  <p className="text-gray-600 text-sm">$1,850/month • 2 beds • 2 baths</p>
-                  <p className="text-gray-600 text-sm">Available: Immediately</p>
-                </div>
-                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">New</div>
-              </div>
-            </div>
+
+        {geoLoading ? (
+          <div className="flex items-center justify-center py-12 text-gray-400">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            Detecting your location...
           </div>
-          
-          {/* Property Card 2 */}
-          <div className="rounded-lg overflow-hidden border shadow-sm">
-            <div className="relative h-48">
-              <Image 
-                src="https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?auto=format&fit=crop&q=80" 
-                alt="Apartment Building" 
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-bold">Spacious Garden Apartment</h4>
-                  <p className="text-gray-600 text-sm">$2,100/month • 3 beds • 1 bath</p>
-                  <p className="text-gray-600 text-sm">Available: Nov 15, 2024</p>
+        ) : displayProperties.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {displayProperties.slice(0, 6).map((property: any) => {
+              const photoRef = property.googlePhotos?.[0]?.photoReference;
+              const imgSrc = photoRef
+                ? `/api/places-photo?ref=${encodeURIComponent(photoRef)}&maxwidth=600`
+                : property.googleImageUrl || null;
+
+              return (
+                <div key={property._id} className="rounded-lg overflow-hidden border shadow-sm">
+                  <div className="relative h-48">
+                    {imgSrc ? (
+                      <img
+                        src={imgSrc}
+                        alt={property.propertyName || "Property"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                        <Building2 className="h-12 w-12 text-gray-300" />
+                      </div>
+                    )}
+                    {property.googleRating && (
+                      <div className="absolute top-2 left-2 bg-white/90 rounded-full px-2 py-0.5 text-xs font-medium flex items-center gap-1">
+                        ⭐ {property.googleRating}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-bold text-sm truncate">{property.propertyName || "Property"}</h4>
+                    <p className="text-gray-600 text-xs flex items-center gap-1 mt-1">
+                      <MapPin className="h-3 w-3" />
+                      {property.city}, {property.state}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {property.totalUnits} units • Built {property.yearBuilt}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Popular</div>
-              </div>
-            </div>
+              );
+            })}
           </div>
-          
-          {/* Property Card 3 */}
-          <div className="rounded-lg overflow-hidden border shadow-sm">
-            <div className="relative h-48">
-              <Image 
-                src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80" 
-                alt="Apartment Building" 
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-bold">Luxury High-Rise Condo</h4>
-                  <p className="text-gray-600 text-sm">$2,850/month • 1 bed • 1.5 baths</p>
-                  <p className="text-gray-600 text-sm">Available: Dec 1, 2024</p>
-                </div>
-              </div>
-            </div>
+        ) : (
+          <div className="text-center py-8 text-gray-400">
+            <Building2 className="h-10 w-10 mx-auto mb-2" />
+            <p className="text-sm">No properties found nearby. Try browsing all properties.</p>
           </div>
-        </div>
-        
+        )}
+
         <div className="flex justify-center mt-8">
-          <Button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full">
-            <Home className="w-5 h-5 mr-2" /> Find Your Next Home
-          </Button>
+          <Link href="/properties">
+            <Button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full">
+              <Home className="w-5 h-5 mr-2" /> Find Your Next Home
+            </Button>
+          </Link>
         </div>
       </div>
 

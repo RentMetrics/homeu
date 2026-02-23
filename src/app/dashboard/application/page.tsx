@@ -8,12 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useUser } from '@clerk/nextjs';
 import { useVerification } from '@/hooks/useVerification';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2 } from 'lucide-react';
+import { GigIncomeConnect } from '@/components/argyle/GigIncomeConnect';
+import { ArgyleLink, ArgyleLinkConnected } from '@/components/argyle/ArgyleLink';
+import { SendApplicationModal } from '@/components/application/SendApplicationModal';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { toast } from 'sonner';
 
 export default function MyApplicationPage() {
   const { user } = useUser();
   const { verificationStatus } = useVerification();
+  const [showSendModal, setShowSendModal] = useState(false);
+
+  const savedApplication = useQuery(
+    api.users.getSavedApplication,
+    user?.id ? { userId: user.id } : "skip"
+  );
+  const saveApplicationMutation = useMutation(api.users.saveApplication);
+
+  // Argyle verified income data
+  const argyleStatus = useQuery(
+    api.argyle.getArgyleStatus,
+    user?.id ? { userId: user.id } : "skip"
+  );
 
   // Dynamic fields state
   const [coApplicants, setCoApplicants] = useState<Array<{ [key: string]: string }>>([{ name: "", email: "" }]);
@@ -40,8 +59,42 @@ export default function MyApplicationPage() {
     isSmoker: false,
     applyingFor: "",
     hasCoApplicant: false,
-    // ...other fields as needed
   });
+
+  // Pre-fill from saved application
+  useEffect(() => {
+    if (savedApplication) {
+      if (savedApplication.formData) setForm(savedApplication.formData);
+      if (savedApplication.coApplicants?.length) setCoApplicants(savedApplication.coApplicants);
+      if (savedApplication.occupants?.length) setOccupants(savedApplication.occupants);
+      if (savedApplication.vehicles?.length) setVehicles(savedApplication.vehicles);
+      if (savedApplication.incomeSources?.length) setIncomeSources(savedApplication.incomeSources);
+    }
+  }, [savedApplication]);
+
+  const handleSendApplication = () => {
+    if (!user?.id) {
+      toast.error("You must be logged in to submit an application.");
+      return;
+    }
+    if (!form.fullName.trim() || !form.email.trim()) {
+      toast.error("Please fill in at least your full name and email.");
+      return;
+    }
+    setShowSendModal(true);
+  };
+
+  const saveApplication = async () => {
+    if (!user?.id) throw new Error("Not logged in");
+    await saveApplicationMutation({
+      userId: user.id,
+      formData: form,
+      coApplicants,
+      occupants,
+      vehicles,
+      incomeSources,
+    });
+  };
 
   // Handlers for dynamic fields (add/remove and onChange)
   const addCoApplicant = () => setCoApplicants([...coApplicants, { name: "", email: "" }]);
@@ -91,7 +144,12 @@ export default function MyApplicationPage() {
             <Badge variant="outline" className="border-orange-200 text-orange-700">Unverified</Badge>
           )}
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">Send Application</Button>
+        <Button
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+          onClick={handleSendApplication}
+        >
+          Send Application
+        </Button>
       </div>
 
       <Card>
@@ -258,17 +316,53 @@ export default function MyApplicationPage() {
             <AccordionItem value="your-work">
               <AccordionTrigger>Your Work</AccordionTrigger>
               <AccordionContent>
-                {/* Current employer fields */}
+                {/* Argyle Verified Employment */}
+                {argyleStatus?.employmentVerified ? (
+                  <div className="mb-6">
+                    <ArgyleLinkConnected
+                      employerName={argyleStatus.verifiedEmployer ?? undefined}
+                      position={argyleStatus.verifiedPosition ?? undefined}
+                      verificationDate={argyleStatus.employmentVerificationDate ?? undefined}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Employer (Verified)</label>
+                        <Input value={argyleStatus.verifiedEmployer || ""} readOnly className="bg-green-50 border-green-200" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Position (Verified)</label>
+                        <Input value={argyleStatus.verifiedPosition || ""} readOnly className="bg-green-50 border-green-200" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Gross Monthly Income (Verified)</label>
+                        <Input value={argyleStatus.verifiedIncome ? `$${argyleStatus.verifiedIncome.toLocaleString()}` : ""} readOnly className="bg-green-50 border-green-200" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Pay Frequency</label>
+                        <Input value={argyleStatus.verifiedPayFrequency || ""} readOnly className="bg-green-50 border-green-200" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6">
+                    <ArgyleLink onConnected={() => toast.success("Employment verified! Your work details have been auto-filled.")} />
+                  </div>
+                )}
+
+                {/* Manual employer fields (always shown for additional info) */}
+                <div className="font-semibold mb-2 text-sm text-gray-500">
+                  {argyleStatus?.employmentVerified ? "Additional Employment Details" : "Or enter manually"}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input placeholder="Current employer" />
+                  <Input placeholder="Current employer" defaultValue={argyleStatus?.verifiedEmployer || ""} />
                   <Input placeholder="Address" />
                   <Input placeholder="City" />
                   <Input placeholder="State" />
                   <Input placeholder="Zip" />
                   <Input placeholder="Work phone" />
                   <Input placeholder="Beginning date of employment" />
-                  <Input placeholder="Gross monthly income" />
-                  <Input placeholder="Position" />
+                  <Input placeholder="Gross monthly income" defaultValue={argyleStatus?.verifiedIncome ? String(argyleStatus.verifiedIncome) : ""} />
+                  <Input placeholder="Position" defaultValue={argyleStatus?.verifiedPosition || ""} />
                   <Input placeholder="Supervisor" />
                   <Input placeholder="Supervisor phone" />
                 </div>
@@ -305,6 +399,11 @@ export default function MyApplicationPage() {
                   </div>
                 ))}
                 <Button variant="outline" onClick={addIncomeSource}>Add Income Source</Button>
+
+                {/* Gig Income Verification */}
+                <div className="mt-6">
+                  <GigIncomeConnect />
+                </div>
               </AccordionContent>
             </AccordionItem>
 
@@ -387,6 +486,14 @@ export default function MyApplicationPage() {
           </Accordion>
         </CardContent>
       </Card>
+
+      {/* Send Application Modal */}
+      <SendApplicationModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        onSave={saveApplication}
+        applicationId={savedApplication?._id}
+      />
     </div>
   );
 } 

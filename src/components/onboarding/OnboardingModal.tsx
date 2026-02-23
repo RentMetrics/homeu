@@ -60,11 +60,15 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
   const checkOnboardingStatus = async () => {
     try {
+      let verificationComplete = false;
+      let bankConnected = false;
+
       // Check if user has completed verification
       const verificationResponse = await fetch('/api/straddle/verification');
       if (verificationResponse.ok) {
         const verificationData = await verificationResponse.json();
         if (verificationData.localVerification?.verified) {
+          verificationComplete = true;
           setOnboardingData(prev => ({ ...prev, verificationComplete: true }));
         }
       }
@@ -74,8 +78,16 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
       if (bankResponse.ok) {
         const bankData = await bankResponse.json();
         if (bankData.bankAccounts && bankData.bankAccounts.length > 0) {
+          bankConnected = true;
           setOnboardingData(prev => ({ ...prev, bankConnected: true }));
         }
+      }
+
+      // Auto-advance to the first incomplete step
+      if (bankConnected) {
+        setCurrentStep('property-search');
+      } else if (verificationComplete) {
+        setCurrentStep('bank-connection');
       }
 
       // Check if user has linked properties
@@ -83,6 +95,21 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     } catch (error) {
       console.error('Error checking onboarding status:', error);
     }
+  };
+
+  // Mark modal as seen when user dismisses it (X button or click outside)
+  const handleClose = () => {
+    if (user) {
+      user.update({
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          onboardingSeen: true,
+        }
+      }).catch((error) => {
+        console.error('Error marking onboarding as seen:', error);
+      });
+    }
+    onClose();
   };
 
   const handleVerificationComplete = (isVerified: boolean) => {
@@ -304,7 +331,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Complete Your Setup</DialogTitle>
