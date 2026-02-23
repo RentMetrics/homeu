@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Home, Building2, SlidersHorizontal, Star, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -96,9 +96,18 @@ const parseSearchQuery = (query: string) => {
 
 export default function PropertiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [yearBuiltFilter, setYearBuiltFilter] = useState('all');
   const [minUnitsFilter, setMinUnitsFilter] = useState('all');
   const [geoLoaded, setGeoLoaded] = useState(false);
+
+  // Debounce search query to prevent re-querying on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Auto-detect user location and pre-fill search
   useEffect(() => {
@@ -115,7 +124,9 @@ export default function PropertiesPage() {
           if (res.ok) {
             const data = await res.json();
             if (data.city && data.state) {
-              setSearchQuery(`${data.city}, ${data.state}`);
+              const loc = `${data.city}, ${data.state}`;
+              setSearchQuery(loc);
+              setDebouncedQuery(loc);
             }
           }
         } catch (error) {
@@ -129,8 +140,8 @@ export default function PropertiesPage() {
     );
   }, []);
 
-  // Parse the search query
-  const { city, state } = parseSearchQuery(searchQuery);
+  // Parse the debounced search query (not the live input)
+  const { city, state } = parseSearchQuery(debouncedQuery);
 
   // Get properties from Convex using the efficient location-based search
   const searchResult = useQuery(api.multifamilyproperties.searchPropertiesByLocation, {
@@ -139,8 +150,20 @@ export default function PropertiesPage() {
     limit: 100
   });
 
+  // State-level fallback when city+state search returns empty
+  const stateResult = useQuery(
+    api.multifamilyproperties.searchPropertiesByLocation,
+    city && state && searchResult !== undefined && searchResult.length === 0
+      ? { state: state, limit: 100 }
+      : "skip"
+  );
+
+  // Use state results as fallback
+  const effectiveResult = (searchResult && searchResult.length > 0) ? searchResult :
+    (stateResult && stateResult.length > 0) ? stateResult : searchResult;
+
   // Filter properties based on additional criteria
-  const filteredProperties = searchResult?.filter((property: any) => {
+  const filteredProperties = effectiveResult?.filter((property: any) => {
     if (!property) return false;
 
     const matchesYearBuilt = yearBuiltFilter === 'all' ||
@@ -156,8 +179,30 @@ export default function PropertiesPage() {
     return matchesYearBuilt && matchesMinUnits;
   }) || [];
 
+  // Fetch uploaded images for displayed properties (prioritize over Google)
+  const filteredPropertyIds = useMemo(
+    () => filteredProperties.map((p: any) => p.propertyId).filter(Boolean),
+    [filteredProperties]
+  );
+  const uploadedImagesArr = useQuery(
+    api.propertyImages.getPrimaryImagesForProperties,
+    filteredPropertyIds.length > 0 ? { propertyIds: filteredPropertyIds } : "skip"
+  );
+  const uploadedImages = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (uploadedImagesArr) {
+      for (const item of uploadedImagesArr) {
+        if (item.url) map[item.propertyId] = item.url;
+      }
+    }
+    return map;
+  }, [uploadedImagesArr]);
+
   // Show loading state while data is being fetched or geo is detecting
-  if (searchResult === undefined || !geoLoaded) {
+  const isLoading = !geoLoaded || searchResult === undefined ||
+    (city && state && searchResult !== undefined && searchResult.length === 0 && stateResult === undefined);
+
+  if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="text-center py-12">
@@ -227,10 +272,12 @@ export default function PropertiesPage() {
       {/* Property Listings */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProperties.map((property: any) => {
-          // Compute image URL outside the JSX so it's accessible for fallback logic
-          const imgSrc = (property.propertyName && property.city && property.state)
+          // Prioritize uploaded images over Google Places photos
+          const uploadedImg = uploadedImages[property.propertyId];
+          const googleImg = (property.propertyName && property.city && property.state)
             ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
             : null;
+          const imgSrc = uploadedImg || googleImg;
 
           return (
             <Card key={property._id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -326,7 +373,9 @@ export default function PropertiesPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button className="w-full">View Details</Button>
+                <Link href={`/dashboard/properties/${property.propertyId}`} className="w-full">
+                  <Button className="w-full">View Details</Button>
+                </Link>
               </CardFooter>
             </Card>
           );

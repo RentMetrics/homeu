@@ -99,6 +99,10 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
   // Mark modal as seen when user dismisses it (X button or click outside)
   const handleClose = () => {
+    // Set localStorage immediately so the popup doesn't reappear before Clerk syncs
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('homeu_onboarding_seen', 'true');
+    }
     if (user) {
       user.update({
         unsafeMetadata: {

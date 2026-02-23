@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar, InfoIcon, Home, Search, AlertCircle, MapPin, Building2, Loader2, Gift, CreditCard, FileText } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useUser } from '@clerk/nextjs';
 import { useVerification } from '@/hooks/useVerification';
@@ -52,8 +52,9 @@ export default function DashboardPage() {
     if (user && isLoaded) {
       const onboardingComplete = user.unsafeMetadata?.onboardingComplete;
       const onboardingSeen = user.unsafeMetadata?.onboardingSeen;
+      const localSeen = typeof window !== 'undefined' && localStorage.getItem('homeu_onboarding_seen');
 
-      if (!onboardingComplete && !onboardingSeen) {
+      if (!onboardingComplete && !onboardingSeen && !localSeen) {
         setShowOnboardingModal(true);
       }
     }
@@ -99,15 +100,47 @@ export default function DashboardPage() {
       : "skip"
   );
 
+  // State-level fallback when city search returns empty
+  const stateProperties = useQuery(
+    api.multifamilyproperties.searchPropertiesByLocation,
+    userLocation && nearbyProperties !== undefined && nearbyProperties.length === 0
+      ? { state: userLocation.state, limit: 6 }
+      : "skip"
+  );
+
   // Fallback: get some properties if location isn't available
   const fallbackProperties = useQuery(
     api.multifamilyproperties.getAllProperties,
     !userLocation && !geoLoading ? { limit: 6 } : "skip"
   );
 
-  const displayProperties = nearbyProperties || fallbackProperties || [];
+  const displayProperties =
+    (nearbyProperties && nearbyProperties.length > 0) ? nearbyProperties :
+    (stateProperties && stateProperties.length > 0) ? stateProperties :
+    fallbackProperties || [];
+
+  // Fetch uploaded images for displayed properties (prioritize over Google)
+  const displayPropertyIds = useMemo(
+    () => displayProperties.map((p: any) => p.propertyId).filter(Boolean),
+    [displayProperties]
+  );
+  const uploadedImagesArr = useQuery(
+    api.propertyImages.getPrimaryImagesForProperties,
+    displayPropertyIds.length > 0 ? { propertyIds: displayPropertyIds } : "skip"
+  );
+  const uploadedImages = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (uploadedImagesArr) {
+      for (const item of uploadedImagesArr) {
+        if (item.url) map[item.propertyId] = item.url;
+      }
+    }
+    return map;
+  }, [uploadedImagesArr]);
+
   const isPropertiesLoading = geoLoading ||
     (userLocation && nearbyProperties === undefined) ||
+    (userLocation && nearbyProperties !== undefined && nearbyProperties.length === 0 && stateProperties === undefined) ||
     (!userLocation && !geoLoading && fallbackProperties === undefined);
 
   // Placeholder for lease data until Convex integration
@@ -248,7 +281,9 @@ export default function DashboardPage() {
             {userLocation && (
               <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                 <MapPin className="h-3 w-3" />
-                {userLocation.city}, {userLocation.state}
+                {nearbyProperties && nearbyProperties.length > 0
+                  ? `${userLocation.city}, ${userLocation.state}`
+                  : userLocation.state}
               </p>
             )}
           </div>
@@ -268,9 +303,12 @@ export default function DashboardPage() {
         ) : displayProperties.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {displayProperties.slice(0, 6).map((property: any) => {
-              const imgSrc = (property.propertyName && property.city && property.state)
+              // Prioritize uploaded images over Google Places photos
+              const uploadedImg = uploadedImages[property.propertyId];
+              const googleImg = (property.propertyName && property.city && property.state)
                 ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
                 : null;
+              const imgSrc = uploadedImg || googleImg;
 
               return (
                 <div key={property._id} className="rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow">

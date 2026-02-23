@@ -97,6 +97,26 @@ export const setPrimaryImage = mutation({
   },
 });
 
+// Batch query: get primary image URLs for multiple properties
+export const getPrimaryImagesForProperties = query({
+  args: { propertyIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const results: Array<{ propertyId: string; url: string | null }> = [];
+    for (const propertyId of args.propertyIds) {
+      const images = await ctx.db
+        .query("propertyImages")
+        .withIndex("by_propertyId", (q) => q.eq("propertyId", propertyId))
+        .collect();
+      const primary = images.find((img) => img.isPrimary) || images[0];
+      if (primary) {
+        const url = await ctx.storage.getUrl(primary.storageId);
+        results.push({ propertyId, url });
+      }
+    }
+    return results;
+  },
+});
+
 // Delete an image
 export const deleteImage = mutation({
   args: { imageId: v.id("propertyImages") },

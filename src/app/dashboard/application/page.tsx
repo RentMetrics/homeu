@@ -7,8 +7,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useUser } from '@clerk/nextjs';
 import { useVerification } from '@/hooks/useVerification';
+import { useUserSync } from '@/hooks/useUserSync';
 import { useState, useEffect } from "react";
 import {
   Plus,
@@ -35,7 +35,7 @@ import { api } from '../../../../convex/_generated/api';
 import { toast } from 'sonner';
 
 export default function MyApplicationPage() {
-  const { user } = useUser();
+  const { user, userProfile } = useUserSync();
   const { verificationStatus } = useVerification();
   const [showSendModal, setShowSendModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +60,7 @@ export default function MyApplicationPage() {
 
   // Main form state
   const [form, setForm] = useState({
-    fullName: user?.fullName || "",
+    fullName: "",
     formerName: "",
     gender: "",
     birthdate: "",
@@ -71,7 +71,7 @@ export default function MyApplicationPage() {
     homePhone: "",
     workPhone: "",
     cellPhone: "",
-    email: user?.emailAddresses?.[0]?.emailAddress || "",
+    email: "",
     maritalStatus: "",
     isCitizen: false,
     isSmoker: false,
@@ -79,16 +79,32 @@ export default function MyApplicationPage() {
     hasCoApplicant: false,
   });
 
-  // Pre-fill from saved application
+  // Pre-fill from saved application, or from profile/signup data
   useEffect(() => {
+    // Still loading saved application
+    if (savedApplication === undefined) return;
+
     if (savedApplication) {
+      // Pre-fill from saved application (highest priority)
       if (savedApplication.formData) setForm(savedApplication.formData);
       if (savedApplication.coApplicants?.length) setCoApplicants(savedApplication.coApplicants);
       if (savedApplication.occupants?.length) setOccupants(savedApplication.occupants);
       if (savedApplication.vehicles?.length) setVehicles(savedApplication.vehicles);
       if (savedApplication.incomeSources?.length) setIncomeSources(savedApplication.incomeSources);
+    } else if (userProfile || user) {
+      // No saved application - pre-fill from signup/profile data
+      setForm(prev => ({
+        ...prev,
+        fullName: (userProfile?.firstName && userProfile?.lastName
+          ? `${userProfile.firstName} ${userProfile.lastName}`.trim()
+          : user?.fullName || prev.fullName),
+        email: userProfile?.email || user?.emailAddresses?.[0]?.emailAddress || prev.email,
+        cellPhone: userProfile?.phoneNumber || prev.cellPhone,
+        birthdate: userProfile?.dateOfBirth || prev.birthdate,
+        state: userProfile?.state || prev.state,
+      }));
     }
-  }, [savedApplication]);
+  }, [savedApplication, userProfile, user]);
 
   const handleSendApplication = () => {
     if (!user?.id) {
