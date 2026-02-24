@@ -5,6 +5,7 @@ import { rateLimit, logSecurityEvent, secureHeaders } from '@/lib/security'
 const isPublicRoute = createRouteMatcher([
   '/',
   '/contact',
+  '/properties(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/webhooks(.*)',

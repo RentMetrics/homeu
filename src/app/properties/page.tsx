@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Home, Building2, SlidersHorizontal, Star, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Building2, SlidersHorizontal, Star, MapPin, Calendar, Loader2, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,13 +20,17 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useQuery } from 'convex/react';
+import { usePaginatedQuery, useQuery } from 'convex/react';
 import { api } from '@convex/_generated/api';
 import Link from "next/link";
 import { useUserSync } from '@/hooks/useUserSync';
+import { DealScoreBadge } from '@/components/market/DealScoreBadge';
+import { LeverageBadge } from '@/components/market/LeverageBadge';
 
 // Force dynamic rendering to prevent SSR issues with Convex
 export const dynamic = 'force-dynamic';
+
+const PAGE_SIZE = 12;
 
 // Helper function to get score color
 const getScoreColor = (score: number) => {
@@ -44,6 +48,10 @@ const getScoreRating = (score: number) => {
   return 'Fair';
 };
 
+// Title-case a string: "salt lake city" → "Salt Lake City"
+const titleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
 // Helper function to parse search query for city and state
 const parseSearchQuery = (query: string) => {
   const trimmed = query.trim();
@@ -52,7 +60,7 @@ const parseSearchQuery = (query: string) => {
   const cityStateMatch = trimmed.match(/^(.+?),\s*([A-Za-z]{2})$/);
   if (cityStateMatch) {
     return {
-      city: cityStateMatch[1].trim(),
+      city: titleCase(cityStateMatch[1].trim()),
       state: cityStateMatch[2].trim().toUpperCase()
     };
   }
@@ -90,10 +98,119 @@ const parseSearchQuery = (query: string) => {
 
   // If no specific pattern, treat as city search
   return {
-    city: trimmed,
+    city: titleCase(trimmed),
     state: undefined
   };
 };
+
+// Color palette for property card placeholders
+const PLACEHOLDER_GRADIENTS = [
+  "from-blue-500 to-indigo-600",
+  "from-purple-500 to-pink-500",
+  "from-emerald-500 to-teal-600",
+  "from-orange-400 to-rose-500",
+  "from-cyan-500 to-blue-600",
+  "from-violet-500 to-purple-600",
+  "from-teal-400 to-emerald-500",
+  "from-rose-400 to-pink-600",
+];
+
+// Concurrency limiter: max 3 photo fetches at once
+let activeRequests = 0;
+const pendingQueue: (() => void)[] = [];
+const MAX_CONCURRENT = 3;
+
+function acquireSlot(): Promise<void> {
+  if (activeRequests < MAX_CONCURRENT) {
+    activeRequests++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => pendingQueue.push(resolve));
+}
+
+function releaseSlot() {
+  activeRequests--;
+  const next = pendingQueue.shift();
+  if (next) { activeRequests++; next(); }
+}
+
+// Lazy property image: only fetches when card scrolls into view
+function LazyPropertyImage({ property, index }: { property: any; index: number }) {
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasFetched = useRef(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasFetched.current) {
+          hasFetched.current = true;
+          observer.disconnect();
+          fetchImage();
+        }
+      },
+      { rootMargin: "200px" } // start fetching 200px before visible
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const fetchImage = async () => {
+    if (!property.propertyName && !property.city) { setFailed(true); return; }
+    setLoading(true);
+    const q = `${property.propertyName || ''} apartments ${property.city || ''} ${property.state || ''}`.trim();
+    try {
+      await acquireSlot();
+      const res = await fetch(`/api/places-photo?query=${encodeURIComponent(q)}&maxwidth=600`);
+      releaseSlot();
+      if (!res.ok || !res.headers.get('content-type')?.startsWith('image')) { setFailed(true); return; }
+      const blob = await res.blob();
+      setImgUrl(URL.createObjectURL(blob));
+    } catch {
+      releaseSlot();
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const gradient = PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length];
+  const initials = (property.propertyName || "AP")
+    .split(" ")
+    .filter((w: string) => w.length > 0)
+    .slice(0, 2)
+    .map((w: string) => w[0].toUpperCase())
+    .join("");
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative">
+      {imgUrl ? (
+        <img
+          src={imgUrl}
+          alt={property.propertyName || 'Property'}
+          className="w-full h-full object-cover"
+          onError={() => { setImgUrl(null); setFailed(true); }}
+        />
+      ) : (
+        <div className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center`}>
+          {loading ? (
+            <Loader2 className="h-8 w-8 text-white/70 animate-spin" />
+          ) : (
+            <>
+              <div className="text-white/90 text-3xl font-bold tracking-wider">{initials}</div>
+              <span className="text-white/70 text-xs font-medium mt-1">{property.totalUnits || 0} Units</span>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PropertiesPage() {
   const { userProfile } = useUserSync();
@@ -103,8 +220,6 @@ export default function PropertiesPage() {
   const [minUnitsFilter, setMinUnitsFilter] = useState('all');
   const [geoLoaded, setGeoLoaded] = useState(false);
   const [profileFallbackApplied, setProfileFallbackApplied] = useState(false);
-  // Track whether we've determined location (geo, profile, or gave up)
-  const [locationReady, setLocationReady] = useState(false);
 
   // Debounce search query to prevent re-querying on every keystroke
   useEffect(() => {
@@ -132,7 +247,6 @@ export default function PropertiesPage() {
               const loc = `${data.city}, ${data.state}`;
               setSearchQuery(loc);
               setDebouncedQuery(loc);
-              setLocationReady(true);
             }
           }
         } catch (error) {
@@ -142,7 +256,7 @@ export default function PropertiesPage() {
         }
       },
       () => setGeoLoaded(true),
-      { timeout: 8000, maximumAge: 300000 }
+      { timeout: 3000, maximumAge: 300000 }
     );
   }, []);
 
@@ -153,37 +267,22 @@ export default function PropertiesPage() {
       setSearchQuery(loc);
       setDebouncedQuery(loc);
       setProfileFallbackApplied(true);
-      setLocationReady(true);
     }
   }, [geoLoaded, searchQuery, profileFallbackApplied, userProfile]);
-
-  // Mark location as ready once geo is done and profile has been checked
-  // (even if neither provided a location — user can search manually)
-  useEffect(() => {
-    if (geoLoaded && !locationReady && userProfile !== undefined) {
-      // Both geo and profile have been checked, neither had a location
-      // Don't auto-set locationReady if profile is still loading (undefined)
-      if (!userProfile?.city?.trim() || !userProfile?.state?.trim()) {
-        setLocationReady(true);
-      }
-    }
-  }, [geoLoaded, locationReady, userProfile]);
 
   // Parse the debounced search query (not the live input)
   const { city, state } = parseSearchQuery(debouncedQuery);
 
-  // Only query when we have an actual location — skip when empty to avoid
-  // showing random properties (e.g. Ohio) while waiting for geo/profile
-  const hasSearchCriteria = !!(city || state);
-  const searchResult = useQuery(
-    api.multifamilyproperties.searchPropertiesByLocation,
-    hasSearchCriteria
-      ? { city: city || undefined, state: state || undefined, limit: 100 }
-      : "skip"
+  // Paginated query — loads PAGE_SIZE at a time
+  // When no search criteria, shows all properties
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.multifamilyproperties.searchPropertiesPaginated,
+    { city: city || undefined, state: state || undefined },
+    { initialNumItems: PAGE_SIZE }
   );
 
   // Filter properties based on additional criteria
-  const filteredProperties = searchResult?.filter((property: any) => {
+  const filteredProperties = (results ?? []).filter((property: any) => {
     if (!property) return false;
 
     const matchesYearBuilt = yearBuiltFilter === 'all' ||
@@ -197,7 +296,7 @@ export default function PropertiesPage() {
       (minUnitsFilter === 'large' && property.totalUnits >= 200);
 
     return matchesYearBuilt && matchesMinUnits;
-  }) || [];
+  });
 
   // Fetch uploaded images for displayed properties (prioritize over Google)
   const filteredPropertyIds = useMemo(
@@ -218,21 +317,25 @@ export default function PropertiesPage() {
     return map;
   }, [uploadedImagesArr]);
 
-  // Show inline loading while Convex query is in flight
-  const isSearching = hasSearchCriteria && searchResult === undefined;
-  // Still waiting for geo + profile check
-  const isDetectingLocation = !locationReady;
+  // Fetch market stats once for the searched location (avoids N+1 per badge)
+  const currentMonth = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+  const cityMarketStats = useQuery(
+    api.marketStats.getMarketStats,
+    city && state ? { city, state, month: currentMonth } : "skip"
+  );
+  const stateMarketStats = useQuery(
+    api.marketStats.getStateMarketStats,
+    state && !cityMarketStats ? { state, month: currentMonth } : "skip"
+  );
+  const marketStats = cityMarketStats ?? stateMarketStats ?? null;
 
-  if (isDetectingLocation) {
-    return (
-      <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="text-center py-12">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
-          <p className="mt-4 text-gray-500">Detecting your location...</p>
-        </div>
-      </div>
-    );
-  }
+  // Loading states
+  const isSearching = status === "LoadingFirstPage";
+  const isLoadingMore = status === "LoadingMore";
+  const canLoadMore = status === "CanLoadMore";
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4">
@@ -243,7 +346,8 @@ export default function PropertiesPage() {
             {isSearching
               ? 'Searching...'
               : <>{filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
-                {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}</>
+                {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
+                {canLoadMore && <span className="text-blue-500"> (more available)</span>}</>
             }
           </p>
         </div>
@@ -304,34 +408,21 @@ export default function PropertiesPage() {
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProperties.map((property: any) => {
-          // Prioritize uploaded images over Google Places photos
+        {filteredProperties.map((property: any, index: number) => {
           const uploadedImg = uploadedImages[property.propertyId];
-          const googleImg = (property.propertyName && property.city && property.state)
-            ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
-            : null;
-          const imgSrc = uploadedImg || googleImg;
 
           return (
             <Card key={property._id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative h-48">
-                {imgSrc ? (
+                {uploadedImg ? (
                   <img
-                    src={imgSrc}
+                    src={uploadedImg}
                     alt={property.propertyName || 'Property'}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const placeholder = target.nextElementSibling as HTMLElement;
-                      if (placeholder) placeholder.style.display = 'flex';
-                    }}
                   />
-                ) : null}
-                <div className={`w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center ${imgSrc ? 'hidden' : ''}`}>
-                  <Building2 className="h-10 w-10 text-blue-300 mb-2" />
-                  <span className="text-xs text-blue-400 font-medium">{property.totalUnits || 0} Units</span>
-                </div>
+                ) : (
+                  <LazyPropertyImage property={property} index={index} />
+                )}
                 <Badge className="absolute top-2 right-2">
                   {property.totalUnits || 0} units
                 </Badge>
@@ -405,27 +496,52 @@ export default function PropertiesPage() {
                   )}
                 </div>
               </CardContent>
-              <CardFooter>
-                <Link href={`/dashboard/properties/${property.propertyId}`} className="w-full">
-                  <Button className="w-full">View Details</Button>
-                </Link>
+              <CardFooter className="flex flex-col gap-2">
+                <div className="w-full flex justify-start gap-2 flex-wrap">
+                  <DealScoreBadge propertyId={property.propertyId} property={property} marketStats={marketStats} />
+                  <LeverageBadge propertyId={property.propertyId} property={property} marketStats={marketStats} />
+                </div>
+                <a
+                  href={`/properties/${property.propertyId}`}
+                  className="w-full inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 text-sm font-medium transition-all"
+                >
+                  View Details
+                </a>
               </CardFooter>
             </Card>
           );
         })}
       </div>
 
-      {!hasSearchCriteria && !isSearching && (
-        <div className="text-center py-12">
-          <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-gray-900">Search for properties</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Enter a city and state above to find properties (e.g., &quot;Salt Lake City, UT&quot;)
+      {/* Load More Button */}
+      {(canLoadMore || isLoadingMore) && (
+        <div className="mt-10 mb-4 flex flex-col items-center gap-3">
+          <div className="w-full max-w-md border-t border-gray-200" />
+          <p className="text-sm text-gray-400">
+            Showing {filteredProperties.length} properties
           </p>
+          <Button
+            onClick={() => loadMore(PAGE_SIZE)}
+            disabled={isLoadingMore}
+            size="lg"
+            className="min-w-[280px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Loading more...
+              </>
+            ) : (
+              <>
+                Load More Properties
+                <ChevronDown className="h-5 w-5 ml-2" />
+              </>
+            )}
+          </Button>
         </div>
       )}
 
-      {hasSearchCriteria && filteredProperties.length === 0 && !isSearching && (
+      {filteredProperties.length === 0 && !isSearching && status === "Exhausted" && (
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
@@ -449,6 +565,7 @@ export default function PropertiesPage() {
         <div className="mt-8 text-center text-sm text-gray-500">
           Showing {filteredProperties.length} properties
           {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
+          {status === "Exhausted" && <span> (all loaded)</span>}
         </div>
       )}
     </div>

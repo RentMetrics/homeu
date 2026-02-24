@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
 
 export const bulkUpload = mutation({
@@ -398,6 +399,90 @@ export const searchPropertiesByLocation = query({
 });
 
 // Helper function to calculate property score
+// Paginated search — used by the properties page with "Load More"
+export const searchPropertiesPaginated = query({
+  args: {
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const { city, state, paginationOpts } = args;
+
+    // Convex only allows ONE .paginate() per query, so we must determine
+    // the correct index/filter BEFORE calling paginate.
+    // Use cheap .first() probes to pick the right strategy.
+
+    let queryBuilder;
+    let postFilter: ((p: any) => boolean) | null = null;
+
+    if (city && state) {
+      // Probe: does exact city+state match exist?
+      const exactProbe = await ctx.db
+        .query("multifamilyproperties")
+        .withIndex("by_city_state", (q) => q.eq("city", city).eq("state", state))
+        .first();
+
+      if (exactProbe || paginationOpts.cursor) {
+        // Exact match found (or continuing pagination with cursor)
+        queryBuilder = ctx.db
+          .query("multifamilyproperties")
+          .withIndex("by_city_state", (q) => q.eq("city", city).eq("state", state));
+      } else {
+        // No exact match — fall back to state index with in-memory city filter
+        const upperState = state.toUpperCase();
+        const lowerCity = city.toLowerCase();
+        queryBuilder = ctx.db
+          .query("multifamilyproperties")
+          .withIndex("by_state", (q) => q.eq("state", upperState));
+        postFilter = (p: any) => p.city?.toLowerCase().includes(lowerCity);
+      }
+    } else if (state) {
+      // Probe: does exact state match exist?
+      const exactProbe = await ctx.db
+        .query("multifamilyproperties")
+        .withIndex("by_state", (q) => q.eq("state", state))
+        .first();
+
+      if (exactProbe || paginationOpts.cursor) {
+        queryBuilder = ctx.db
+          .query("multifamilyproperties")
+          .withIndex("by_state", (q) => q.eq("state", state));
+      } else {
+        // Fallback: uppercase
+        queryBuilder = ctx.db
+          .query("multifamilyproperties")
+          .withIndex("by_state", (q) => q.eq("state", state.toUpperCase()));
+      }
+    } else if (city) {
+      queryBuilder = ctx.db
+        .query("multifamilyproperties")
+        .withIndex("by_city", (q) => q.eq("city", city));
+    } else {
+      queryBuilder = ctx.db.query("multifamilyproperties");
+    }
+
+    // Single paginate call
+    const paginationResult = await queryBuilder.paginate(paginationOpts);
+
+    // Apply in-memory filter if needed (for case-insensitive city match)
+    const filteredPage = postFilter
+      ? paginationResult.page.filter(postFilter)
+      : paginationResult.page;
+
+    return {
+      ...paginationResult,
+      page: filteredPage.map((property: any) => ({
+        ...property,
+        displayName: property.propertyName || `${property.city}, ${property.state}`,
+        averageRent: 0,
+        occupancyRate: 0,
+        score: calculatePropertyScore(property),
+      })),
+    };
+  },
+});
+
 function calculatePropertyScore(property: any): number {
   let score = 70; // Base score
   
@@ -582,6 +667,72 @@ export const getPropertyWithMarketData = query({
       .collect();
 
     return { ...property, rentData, occupancyData, concessionData };
+  },
+});
+
+// Get property with full market context for Market Intelligence scoring
+export const getPropertyWithMarketContext = query({
+  args: { propertyId: v.string() },
+  handler: async (ctx, args) => {
+    const property = await ctx.db
+      .query("multifamilyproperties")
+      .withIndex("by_propertyId", (q) => q.eq("propertyId", args.propertyId))
+      .first();
+    if (!property) return null;
+
+    // Get latest rent data (last 13 months for trend calculation)
+    const rentData = await ctx.db
+      .query("rentData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+    const sortedRent = rentData.sort((a, b) => b.month.localeCompare(a.month));
+    const latestRent = sortedRent[0] ?? null;
+
+    // Get latest occupancy data
+    const occupancyData = await ctx.db
+      .query("occupancyData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+    const sortedOcc = occupancyData.sort((a, b) => b.month.localeCompare(a.month));
+    const latestOccupancy = sortedOcc[0] ?? null;
+
+    // Get latest concession data
+    const concessionData = await ctx.db
+      .query("concessionData")
+      .withIndex("by_propertyId_month", (q) => q.eq("propertyId", args.propertyId))
+      .collect();
+    const sortedCon = concessionData.sort((a, b) => b.month.localeCompare(a.month));
+    const latestConcession = sortedCon[0] ?? null;
+
+    // Get market stats for this property's city/state/current month
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    let marketStats = await ctx.db
+      .query("marketStats")
+      .withIndex("by_city_state_month", (q) =>
+        q.eq("city", property.city).eq("state", property.state).eq("month", currentMonth)
+      )
+      .first();
+
+    // Fallback to state-level stats
+    if (!marketStats) {
+      marketStats = await ctx.db
+        .query("marketStats")
+        .withIndex("by_city_state_month", (q) =>
+          q.eq("city", "__STATE__").eq("state", property.state).eq("month", currentMonth)
+        )
+        .first();
+    }
+
+    return {
+      property,
+      propertyRent: latestRent,
+      propertyOccupancy: latestOccupancy,
+      propertyConcession: latestConcession,
+      rentHistory: sortedRent,
+      marketStats,
+    };
   },
 });
 

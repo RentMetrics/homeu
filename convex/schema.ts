@@ -274,6 +274,26 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  // Pre-aggregated market baselines for Market Intelligence scoring
+  marketStats: defineTable({
+    city: v.string(),
+    state: v.string(),
+    month: v.string(),           // "YYYY-MM"
+    avgRent: v.number(),
+    medianRent: v.number(),
+    avgRentPerSqFt: v.number(),
+    avgOccupancy: v.number(),
+    avgConcessionValue: v.number(),
+    concessionPrevalence: v.number(),  // % of properties offering concessions
+    rentTrend3mo: v.number(),          // % change
+    rentTrend12mo: v.number(),         // % change
+    propertyCount: v.number(),
+    totalUnits: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_city_state_month", ["city", "state", "month"])
+    .index("by_state_month", ["state", "month"]),
+
   // PM onboarding tokens for bank setup
   pmOnboardingTokens: defineTable({
     propertyManagerId: v.id("propertyManagers"),

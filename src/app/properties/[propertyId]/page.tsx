@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
 import {
   Building2,
   MapPin,
@@ -22,10 +23,8 @@ import {
 } from "lucide-react";
 import { MarketAnalysisPanel } from "@/components/market/MarketAnalysisPanel";
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-// Helper function to get score color
 function getScoreColor(score: number) {
   if (score >= 90) return "bg-green-100 text-green-800 border-green-300";
   if (score >= 80) return "bg-blue-100 text-blue-800 border-blue-300";
@@ -33,17 +32,47 @@ function getScoreColor(score: number) {
   return "bg-muted text-foreground border-gray-300";
 }
 
-export default function PropertyDetailPage() {
+function HeroImage({ property, primaryImageUrl }: { property: any; primaryImageUrl?: string }) {
+  const [placesUrl, setPlacesUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (primaryImageUrl || property.googleImageUrl) return;
+    if (!property.propertyName && !property.city) return;
+    const query = `${property.propertyName || ''} apartments ${property.city || ''} ${property.state || ''}`.trim();
+    let cancelled = false;
+    fetch(`/api/places-photo?query=${encodeURIComponent(query)}&maxwidth=800`)
+      .then((res) => {
+        if (!res.ok || !res.headers.get('content-type')?.startsWith('image')) throw new Error();
+        return res.blob();
+      })
+      .then((blob) => { if (!cancelled) setPlacesUrl(URL.createObjectURL(blob)); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [property.propertyName, property.city, property.state, property.googleImageUrl, primaryImageUrl]);
+
+  const imgSrc = primaryImageUrl || property.googleImageUrl || placesUrl;
+  if (!imgSrc || failed) {
+    return (
+      <div className="h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+        <Building2 className="h-24 w-24 text-muted-foreground" />
+      </div>
+    );
+  }
+  return (
+    <img src={imgSrc} alt={property.propertyName} className="h-full w-full object-cover" onError={() => setFailed(true)} />
+  );
+}
+
+export default function PublicPropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const propertyId = params.propertyId as string;
 
-  // Query property details
   const property = useQuery(api.multifamilyproperties.getPropertyById, {
-    propertyId: propertyId,
+    propertyId,
   });
 
-  // Query uploaded images for this property (prioritize over Google)
   const propertyImages = useQuery(
     api.propertyImages.getImagesByProperty,
     propertyId ? { propertyId } : "skip"
@@ -52,8 +81,8 @@ export default function PropertyDetailPage() {
 
   if (property === undefined) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-96 w-full" />
+      <div className="max-w-5xl mx-auto py-8 px-4 space-y-6">
+        <Skeleton className="h-96 w-full rounded-xl" />
         <div className="grid gap-6 md:grid-cols-3">
           <Skeleton className="h-48" />
           <Skeleton className="h-48" />
@@ -71,10 +100,10 @@ export default function PropertyDetailPage() {
             <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Property Not Found</h3>
             <p className="text-muted-foreground mb-4">
-              The property you're looking for doesn't exist.
+              The property you&apos;re looking for doesn&apos;t exist.
             </p>
-            <Button onClick={() => router.push('/dashboard/search')}>
-              Back to Search
+            <Button onClick={() => router.push('/properties')}>
+              Back to Properties
             </Button>
           </CardContent>
         </Card>
@@ -83,58 +112,21 @@ export default function PropertyDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Back Button */}
+    <div className="max-w-5xl mx-auto py-8 px-4 space-y-6">
       <Button
         variant="ghost"
         onClick={() => router.back()}
         className="mb-4"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Search
+        Back to Properties
       </Button>
 
       {/* Hero Section */}
       <Card className="overflow-hidden">
         <div className="relative h-96">
-          {primaryImage?.url ? (
-            <img
-              src={primaryImage.url}
-              alt={property.propertyName}
-              className="h-full w-full object-cover"
-            />
-          ) : property.googleImageUrl ? (
-            <>
-              <img
-                src={property.googleImageUrl}
-                alt={property.propertyName}
-                className="h-full w-full object-cover"
-              />
-              {property.googleAttributionRequired && (
-                <div className="absolute bottom-4 right-4 bg-card/90 px-3 py-1.5 rounded text-sm flex items-center gap-2 shadow-lg">
-                  <span className="text-muted-foreground">Photo:</span>
-                  <span className="font-semibold text-blue-600">Google</span>
-                </div>
-              )}
-            </>
-          ) : (property.propertyName && property.city && property.state) ? (
-            <img
-              src={`/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=800`}
-              alt={property.propertyName}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const placeholder = target.nextElementSibling as HTMLElement;
-                if (placeholder) placeholder.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className={`h-full bg-gradient-to-br from-blue-100 to-purple-100 items-center justify-center ${primaryImage?.url || property.googleImageUrl || (property.propertyName && property.city && property.state) ? 'hidden' : 'flex'}`}>
-            <Building2 className="h-24 w-24 text-muted-foreground" />
-          </div>
+          <HeroImage property={property} primaryImageUrl={primaryImage?.url} />
 
-          {/* Badges Overlay */}
           <div className="absolute top-4 right-4 flex gap-2">
             {property.googleRating && (
               <Badge className="bg-card/90 text-foreground flex items-center gap-1 text-base py-1 px-3">
@@ -163,7 +155,6 @@ export default function PropertyDetailPage() {
               </div>
             </div>
 
-            {/* Key Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
               <div className="flex items-center gap-3">
                 <Users className="h-5 w-5 text-muted-foreground" />
@@ -195,7 +186,6 @@ export default function PropertyDetailPage() {
               </div>
             </div>
 
-            {/* Apply Button */}
             <div className="pt-4">
               <Button size="lg" className="w-full md:w-auto" onClick={() => router.push(`/dashboard/apply?propertyId=${propertyId}`)}>
                 <ExternalLink className="h-5 w-5 mr-2" />

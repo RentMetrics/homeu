@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useUser } from '@clerk/nextjs';
-import { useEffect } from "react";
 import Link from "next/link";
+import { RenewalStrategyPanel } from "@/components/market/RenewalStrategyPanel";
 
 // Force dynamic rendering to prevent SSR issues with Convex
 export const dynamic = 'force-dynamic';
@@ -28,6 +28,26 @@ export default function LeasePage() {
 
   // Find the most recent lease (for abstract/highlights)
   const latestLease = leases && leases.length > 0 ? leases[leases.length - 1] : null;
+
+  // Fetch user's renter profile for location-based market data
+  const renterProfile = useQuery(api.renters.getByUserId, user?.id ? { userId: user.id } : "skip");
+  const currentMonth = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+  const cityMarketStats = useQuery(
+    api.marketStats.getMarketStats,
+    renterProfile?.city && renterProfile?.state
+      ? { city: renterProfile.city, state: renterProfile.state, month: currentMonth }
+      : "skip"
+  );
+  const stateMarketStats = useQuery(
+    api.marketStats.getStateMarketStats,
+    renterProfile?.state && !cityMarketStats
+      ? { state: renterProfile.state, month: currentMonth }
+      : "skip"
+  );
+  const marketStats = cityMarketStats ?? stateMarketStats ?? null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -118,6 +138,27 @@ export default function LeasePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Renewal Strategy (shown when lease has rental amount) */}
+      {latestLease?.rentalAmount && (() => {
+        const rentAmount = parseFloat(latestLease.rentalAmount.replace(/[^0-9.]/g, ''));
+        if (isNaN(rentAmount) || rentAmount <= 0) return null;
+        // Estimate lease end month ~12 months from upload
+        const uploadDate = new Date(latestLease.uploadedAt);
+        const leaseEndMonth = ((uploadDate.getMonth() + 12) % 12) + 1;
+        return (
+          <RenewalStrategyPanel
+            currentRent={rentAmount}
+            marketRent={marketStats?.avgRent ?? rentAmount}
+            occupancyRate={marketStats?.avgOccupancy ?? 90}
+            tenureTenureMonths={12}
+            onTimePaymentRate={95}
+            rentTrend3mo={marketStats?.rentTrend3mo ?? 0}
+            concessionValue={marketStats?.avgConcessionValue ?? 0}
+            leaseEndMonth={leaseEndMonth}
+          />
+        );
+      })()}
 
       {/* Upload Section */}
       <Card>
