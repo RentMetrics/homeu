@@ -9,12 +9,6 @@ const Banner = () => {
     const [email, setEmail] = useState('');
     const { user, isLoaded } = useUser();
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        console.log('Email submitted:', email);
-        // Handle form submission logic here
-    };
-
     return (
         <section className="min-h-screen bg-bg-black relative text-white">
             <div className="container mx-auto px-6 lg:px-8 py-8 lg:py-20">
@@ -56,7 +50,12 @@ const Banner = () => {
                                             className="w-full bg-white h-[62px] px-6 py-4 rounded-full text-gray-900 placeholder-gray-500 text-lg focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-all duration-300"
                                         />
 
-                                        <SignUpButton mode="modal">
+                                        <SignUpButton
+                                            mode="modal"
+                                            forceRedirectUrl="/dashboard"
+                                            signInForceRedirectUrl="/dashboard"
+                                            {...(email ? { initialValues: { emailAddress: email } } : {})}
+                                        >
                                             <button
                                                 className="px-8 py-3 h-14 bg-primary-main text-white font-semibold rounded-full transform hover:scale-105 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 text-lg whitespace-nowrap"
                                             >
@@ -66,9 +65,6 @@ const Banner = () => {
                                     </>
                                 )}
                             </div>
-
-
-
 
                             <div className=" hidden lg:flex flex-col items-end justify-center gap-4 pt-30">
                                 {/* Top row: images + number */}
@@ -102,16 +98,12 @@ const Banner = () => {
                                     <h2 className="text-4xl font-bold text-white">34K</h2>
                                 </div>
 
-
-
                                 <div className='flex items-center gap-2.5'>
                                     {/* Dot */}
                                     <span className="w-3 h-3 rounded-full bg-green-500"></span>
                                     {/* Bottom text */}
                                     <p className="text-lg text-white font-medium">active users</p>
                                 </div>
-
-
                             </div>
 
                         </div>
