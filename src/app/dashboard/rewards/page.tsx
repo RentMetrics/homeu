@@ -19,7 +19,6 @@ import {
   Zap,
   CreditCard,
   ShoppingBag,
-  X,
   Headphones,
   Home,
   Plane,
@@ -41,8 +40,6 @@ import { useUserSync } from "@/hooks/useUserSync";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
-import Image from "next/image";
-
 const fmt = (n: number) => n.toLocaleString("en-US");
 
 // Popular reward categories matching Awardco's store
@@ -157,7 +154,6 @@ const popularItems = [
 
 export default function RewardsPage() {
   const [copied, setCopied] = useState(false);
-  const [storeOpen, setStoreOpen] = useState(false);
   const [storeLoading, setStoreLoading] = useState(false);
   const { user } = useUserSync();
 
@@ -218,12 +214,45 @@ export default function RewardsPage() {
     }
   };
 
-  // Open the Awardco store inline via SSO
+  // Open the Awardco store via SSO in a popup window
   const openRewardsStore = useCallback(() => {
     setStoreLoading(true);
-    setStoreOpen(true);
-    // Small delay to let the modal render before loading the iframe
-    setTimeout(() => setStoreLoading(false), 1500);
+    const width = 1100;
+    const height = 750;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const ssoWindow = window.open(
+      "/api/awardco/sso",
+      "homeu_rewards_store",
+      `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
+    );
+
+    if (!ssoWindow) {
+      toast.info("Opening Rewards Store...");
+      window.location.href = "/api/awardco/sso";
+      setStoreLoading(false);
+      return;
+    }
+
+    const checkWindow = setInterval(() => {
+      if (ssoWindow.closed) {
+        clearInterval(checkWindow);
+        setStoreLoading(false);
+        // Refresh balance after store closes
+        fetch("/api/awardco/balance")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) setAwardcoBalance(data.balance);
+          })
+          .catch(() => {});
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      clearInterval(checkWindow);
+      setStoreLoading(false);
+    }, 30000);
   }, []);
 
   const getRewardIcon = (iconType: string) => {
@@ -387,11 +416,21 @@ export default function RewardsPage() {
             </div>
             <Button
               onClick={openRewardsStore}
+              disabled={storeLoading}
               size="lg"
               className="bg-white text-emerald-700 hover:bg-white/90 font-semibold shrink-0"
             >
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Open Rewards Store
+              {storeLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Opening...
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Open Rewards Store
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -657,59 +696,6 @@ export default function RewardsPage() {
         </Card>
       </div>
 
-      {/* Embedded Rewards Store Modal */}
-      {storeOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <ShoppingBag className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">
-                  HomeU Rewards Store
-                </h2>
-                {awardcoBalance !== null && (
-                  <Badge className="bg-white/20 text-white border-0 text-sm">
-                    ${awardcoBalance.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    available
-                  </Badge>
-                )}
-              </div>
-              <button
-                onClick={() => setStoreOpen(false)}
-                className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Store Content */}
-            <div className="flex-1 overflow-hidden">
-              {storeLoading ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <Loader2 className="h-10 w-10 animate-spin text-emerald-500 mb-4" />
-                  <p className="text-gray-600 font-medium">
-                    Loading Rewards Store...
-                  </p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Signing you in securely
-                  </p>
-                </div>
-              ) : (
-                <iframe
-                  src="/api/awardco/sso"
-                  className="w-full h-full border-0"
-                  title="HomeU Rewards Store"
-                  allow="payment"
-                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
