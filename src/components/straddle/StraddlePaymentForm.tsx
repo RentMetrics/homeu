@@ -21,15 +21,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { 
-  Loader2, 
-  Building2, 
-  CreditCard, 
-  CheckCircle, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Loader2,
+  Building2,
+  CreditCard,
+  CheckCircle,
   AlertCircle,
   DollarSign,
   Calendar,
-  Receipt
+  Receipt,
+  ShieldCheck
 } from 'lucide-react';
 import { VerificationBadge } from '@/components/ui/verification-badge';
 
@@ -39,6 +41,9 @@ const paymentSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   paykey: z.string().min(1, 'Please select a bank account'),
   propertyId: z.string().min(1, 'Please select a property'),
+  achAuthorization: z.literal(true, {
+    errorMap: () => ({ message: 'You must authorize this ACH payment to proceed' }),
+  }),
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
@@ -89,6 +94,7 @@ export function StraddlePaymentForm({
       description: '',
       paykey: '',
       propertyId: defaultPropertyId || '',
+      achAuthorization: false as unknown as true,
     },
   });
 
@@ -418,8 +424,46 @@ export function StraddlePaymentForm({
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
+              {/* ACH Authorization */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-start gap-2 mb-3">
+                  <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm font-medium text-gray-900">ACH Payment Authorization</p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="achAuthorization"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value === true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal text-gray-700 leading-relaxed">
+                          By checking this box, I authorize HomeU and its payment processor, Straddle, to electronically
+                          debit my bank account in the amount shown above via the ACH network. I understand that this
+                          authorization is for a one-time payment and that I may revoke this authorization at any time
+                          by contacting HomeU at{' '}
+                          <a href="mailto:support@homeu.co" className="text-blue-600 hover:underline">support@homeu.co</a>.
+                          I acknowledge that ACH transactions are governed by Nacha Operating Rules and that I have the
+                          right to dispute unauthorized debits with my financial institution within 60 days.
+                          I agree to the{' '}
+                          <a href="/terms" target="_blank" className="text-blue-600 hover:underline">Terms of Service</a>
+                          {' '}and{' '}
+                          <a href="/privacy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</a>.
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Button
+                type="submit"
                 disabled={isSubmitting}
                 className="w-full"
               >
@@ -431,7 +475,7 @@ export function StraddlePaymentForm({
                 ) : (
                   <>
                     <Receipt className="mr-2 h-4 w-4" />
-                    Pay Rent
+                    Authorize &amp; Pay Rent
                   </>
                 )}
               </Button>
@@ -445,8 +489,9 @@ export function StraddlePaymentForm({
               <div className="text-sm">
                 <p className="font-medium text-blue-900">Secure Payment</p>
                 <p className="text-blue-700">
-                  Your payment is processed securely through Straddle with bank-level encryption 
-                  and real-time fraud protection.
+                  Your payment is processed securely through Straddle with bank-level encryption,
+                  real-time fraud protection, and balance verification. HomeU never stores your
+                  raw bank credentials.
                 </p>
               </div>
             </div>
