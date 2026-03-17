@@ -14,13 +14,17 @@ import {
   Settings,
   Menu,
   UserCheck,
-  CreditCard
+  CreditCard,
+  BarChart3,
+  Megaphone,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
 
 const adminNavigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Operations', href: '/admin/operations', icon: BarChart3 },
+  { name: 'Marketing', href: '/admin/marketing', icon: Megaphone },
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Properties', href: '/admin/properties', icon: Building2 },
   { name: 'Property Managers', href: '/admin/property-managers', icon: UserCheck },
