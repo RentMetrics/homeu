@@ -20,7 +20,19 @@ export default defineSchema({
     verified: v.optional(v.boolean()),
     verificationStatus: v.optional(v.string()),
     verificationDate: v.optional(v.number()),
-  }).index("by_userId", ["userId"]),
+    // Property linking
+    propertyId: v.optional(v.string()),
+    propertyManagerId: v.optional(v.string()),
+    unitNumber: v.optional(v.string()),
+    propertyLinkStatus: v.optional(v.string()), // "linked" | "pending_pm_setup" | "pending_property" | "unlinked"
+    pmContactInfo: v.optional(v.object({
+      companyName: v.string(),
+      contactName: v.optional(v.string()),
+      email: v.string(),
+      phone: v.optional(v.string()),
+    })),
+  }).index("by_userId", ["userId"])
+    .index("by_propertyId", ["propertyId"]),
   properties: defineTable({
     title: v.string(),
     type: v.string(),
@@ -458,6 +470,28 @@ export default defineSchema({
   }).index("by_renterId", ["renterId"])
     .index("by_status", ["status"])
     .index("by_revenueId", ["revenueId"]),
+
+  // PM outreach requests — triggered when a renter links to a property
+  // whose PM hasn't onboarded yet
+  pmOutreachRequests: defineTable({
+    renterId: v.string(),
+    propertyId: v.optional(v.string()),
+    pmEmail: v.string(),
+    pmCompanyName: v.string(),
+    pmContactName: v.optional(v.string()),
+    pmPhone: v.optional(v.string()),
+    propertyName: v.optional(v.string()),
+    propertyAddress: v.optional(v.string()),
+    propertyCity: v.optional(v.string()),
+    propertyState: v.optional(v.string()),
+    propertyZipCode: v.optional(v.string()),
+    status: v.string(), // "pending" | "sent" | "onboarded" | "declined"
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+    resolvedAt: v.optional(v.number()),
+  }).index("by_renterId", ["renterId"])
+    .index("by_pmEmail", ["pmEmail"])
+    .index("by_status", ["status"]),
 
   // Rent payment routing config
   rentPaymentRouting: defineTable({

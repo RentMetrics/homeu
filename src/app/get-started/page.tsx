@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useUser } from '@clerk/nextjs';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -15,9 +18,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, ArrowRight } from 'lucide-react';
 
 const formSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -34,18 +37,19 @@ const formSchema = z.object({
   employer: z.string().min(2, 'Employer name must be at least 2 characters'),
   position: z.string().min(2, 'Position must be at least 2 characters'),
   income: z.number().min(0, 'Income must be a positive number'),
-  email: z.string().email('Invalid email address'),
 });
 
 export default function GetStartedPage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createRenter = useMutation(api.renters.create);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
       phoneNumber: '',
       dateOfBirth: '',
       street: '',
@@ -55,35 +59,77 @@ export default function GetStartedPage() {
       employer: '',
       position: '',
       income: 0,
-      email: '',
     },
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    if (!user) {
+      toast.error('Please sign in first');
+      router.push('/sign-in');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      
-      // Store form data in localStorage temporarily
-      localStorage.setItem('userProfile', JSON.stringify({
-        userId: `temp_${Date.now()}`,
-        ...data
-      }));
-      
-      toast.success('Profile created successfully!');
-      router.push('/dashboard');
-    } catch (error) {
-      toast.error('Failed to create profile. Please try again.');
-      console.error('Error creating profile:', error);
+
+      await createRenter({
+        userId: user.id,
+        email: user.emailAddresses[0]?.emailAddress || '',
+        ...data,
+      });
+
+      toast.success('Profile created! Now let\'s find your property.');
+      router.push('/get-started/link-property');
+    } catch (error: any) {
+      if (error?.message?.includes('already exists')) {
+        // Profile already exists, just move forward
+        router.push('/get-started/link-property');
+      } else {
+        toast.error('Failed to create profile. Please try again.');
+        console.error('Error creating profile:', error);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push('/sign-in');
+    return null;
+  }
+
   return (
-    <div className="container max-w-2xl mx-auto py-8">
+    <div className="container max-w-2xl mx-auto py-8 px-4">
+      {/* Progress indicator */}
+      <div className="flex items-center gap-2 mb-8">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-medium">1</div>
+          <span className="text-sm font-medium">Your Profile</span>
+        </div>
+        <div className="flex-1 h-px bg-gray-300" />
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-medium">2</div>
+          <span className="text-sm text-gray-500">Your Property</span>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Let's Get Started</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Let's Get Started
+          </CardTitle>
+          <CardDescription>
+            Tell us about yourself so we can set up your HomeU profile.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -116,20 +162,6 @@ export default function GetStartedPage() {
                   )}
                 />
               </div>
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}
@@ -250,9 +282,9 @@ export default function GetStartedPage() {
                   <FormItem>
                     <FormLabel>Annual Income</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
+                      <Input
+                        type="number"
+                        {...field}
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -268,7 +300,10 @@ export default function GetStartedPage() {
                     Creating Profile...
                   </>
                 ) : (
-                  'Create Profile'
+                  <>
+                    Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
                 )}
               </Button>
             </form>
@@ -277,4 +312,4 @@ export default function GetStartedPage() {
       </Card>
     </div>
   );
-} 
+}
