@@ -157,19 +157,7 @@ export default function RewardsPage() {
   const [storeLoading, setStoreLoading] = useState(false);
   const { user } = useUserSync();
 
-  // Awardco balance
-  const [awardcoBalance, setAwardcoBalance] = useState<number | null>(null);
-  const [awardcoLoading, setAwardcoLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/awardco/balance")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setAwardcoBalance(data.balance);
-      })
-      .catch(() => {})
-      .finally(() => setAwardcoLoading(false));
-  }, []);
+  // No longer fetching Awardco dollar balance — we run on points
 
   // Convex queries and mutations
   const userPoints = useQuery(
@@ -239,13 +227,7 @@ export default function RewardsPage() {
       if (ssoWindow.closed) {
         clearInterval(checkWindow);
         setStoreLoading(false);
-        // Refresh balance after store closes
-        fetch("/api/awardco/balance")
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) setAwardcoBalance(data.balance);
-          })
-          .catch(() => {});
+        // Store closed - user may have redeemed points
       }
     }, 1000);
 
@@ -354,28 +336,18 @@ export default function RewardsPage() {
             </CardContent>
           </Card>
 
-          {/* Awardco Balance */}
+          {/* Points Per Payment */}
           <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
             <CardContent className="p-6 text-center">
               <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
                 <Award className="h-6 w-6 text-amber-600" />
               </div>
               <p className="text-sm text-amber-600 font-medium mb-1">
-                Available to Spend
+                Earning Rate
               </p>
-              {awardcoLoading ? (
-                <Loader2 className="h-8 w-8 animate-spin text-amber-400 mx-auto mt-2" />
-              ) : (
-                <p className="text-4xl font-bold text-amber-700">
-                  {awardcoBalance !== null
-                    ? `$${awardcoBalance.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}`
-                    : "$0.00"}
-                </p>
-              )}
+              <p className="text-4xl font-bold text-amber-700">200</p>
               <p className="text-xs text-amber-600/60 mt-2">
-                Redeemable balance
+                Points per rent payment
               </p>
             </CardContent>
           </Card>

@@ -294,6 +294,193 @@ export default defineSchema({
     .index("by_city_state_month", ["city", "state", "month"])
     .index("by_state_month", ["state", "month"]),
 
+  // Monthly rent statements
+  monthlyStatements: defineTable({
+    renterId: v.string(),
+    propertyId: v.string(),
+    propertyManagerId: v.string(),
+    organizationId: v.optional(v.string()),
+    month: v.string(), // "YYYY-MM"
+    statementNumber: v.string(),
+    lineItems: v.array(v.object({
+      type: v.string(),
+      description: v.string(),
+      amount: v.number(),
+    })),
+    subtotal: v.number(),
+    homeuPlatformFee: v.number(), // $9.99
+    totalDue: v.number(),
+    status: v.string(), // "draft" | "sent" | "overdue" | "partial" | "paid"
+    dueDate: v.number(),
+    paymentIds: v.optional(v.array(v.string())),
+    amountPaid: v.optional(v.number()),
+    remindersSent: v.optional(v.number()),
+    viewedAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+    paidAt: v.optional(v.number()),
+  }).index("by_renterId_month", ["renterId", "month"])
+    .index("by_renterId", ["renterId"])
+    .index("by_month", ["month"])
+    .index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_status", ["status"]),
+
+  // Rent payments with fee split routing
+  rentPayments: defineTable({
+    renterId: v.string(),
+    statementId: v.optional(v.id("monthlyStatements")),
+    propertyId: v.string(),
+    propertyManagerId: v.string(),
+    totalAmount: v.number(), // rent + $9.99 fee
+    rentAmount: v.number(),
+    homeuFee: v.number(), // $9.99
+    feeBreakdown: v.object({
+      operationsFee: v.number(), // $4.99
+      rewardsFunding: v.number(), // $2.00
+      creditReportingFee: v.number(), // $3.00
+      pointsAwarded: v.number(), // 200
+    }),
+    paymentMethod: v.string(), // "ach" | "crypto"
+    paykey: v.optional(v.string()),
+    status: v.string(), // "pending" | "processing" | "completed" | "failed"
+    isOnTime: v.boolean(),
+    daysEarly: v.optional(v.number()),
+    isAutoPay: v.optional(v.boolean()),
+    pointsAwarded: v.boolean(),
+    totalPointsEarned: v.optional(v.number()),
+    straddlePaymentId: v.optional(v.string()),
+    straddleRentRouteId: v.optional(v.string()),
+    straddleFeeRouteId: v.optional(v.string()),
+    pointsTransactionId: v.optional(v.string()),
+    completedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    creditReported: v.optional(v.boolean()),
+    creditReportedAt: v.optional(v.number()),
+    initiatedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_renterId", ["renterId"])
+    .index("by_statementId", ["statementId"])
+    .index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_status", ["status"]),
+
+  // User reward points balance and stats
+  userPoints: defineTable({
+    userId: v.string(),
+    totalEarned: v.number(),
+    totalRedeemed: v.number(),
+    currentBalance: v.number(),
+    expiringPoints: v.optional(v.number()),
+    lastEarnedAt: v.optional(v.number()),
+    lastRedeemedAt: v.optional(v.number()),
+    streakCount: v.optional(v.number()),
+    longestStreak: v.optional(v.number()),
+    referralCount: v.optional(v.number()),
+    tier: v.string(), // "bronze" | "silver" | "gold" | "platinum"
+    // Awardco funding tracking
+    totalFundedToAwardco: v.optional(v.number()), // total $ sent to Awardco
+    lastAwardcoFundedAt: v.optional(v.number()),
+    metadata: v.optional(v.any()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_currentBalance", ["currentBalance"]),
+
+  // Point transaction ledger
+  pointTransactions: defineTable({
+    userId: v.string(),
+    type: v.string(), // "earn" | "redeem" | "expire" | "awardco_fund"
+    category: v.string(), // "rent" | "signup" | "referral" | "milestone" | "redemption" | "awardco_funding"
+    amount: v.number(), // positive for earn, negative for redeem
+    balance: v.number(), // running balance after transaction
+    description: v.string(),
+    metadata: v.optional(v.any()),
+    awardcoSynced: v.optional(v.boolean()),
+    awardcoTransactionId: v.optional(v.string()),
+    status: v.string(), // "completed" | "pending" | "failed" | "expired"
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_type", ["type"])
+    .index("by_awardcoSynced", ["awardcoSynced"]),
+
+  // Payment streaks
+  paymentStreaks: defineTable({
+    userId: v.string(),
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastPaymentDate: v.number(),
+    streakStartDate: v.number(),
+    missedPayments: v.optional(v.number()),
+    streakBonuses: v.optional(v.array(v.any())),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  // HomeU revenue tracking per payment
+  homeuRevenue: defineTable({
+    rentPaymentId: v.id("rentPayments"),
+    statementId: v.optional(v.id("monthlyStatements")),
+    renterId: v.string(),
+    propertyManagerId: v.string(),
+    totalFee: v.number(), // $9.99
+    operationsRevenue: v.number(), // $4.99
+    rewardsFunding: v.optional(v.number()), // $2.00
+    creditReportingFee: v.optional(v.number()), // $3.00
+    pointsLiability: v.number(), // $2.00 (dollar value owed to resident)
+    pointsIssued: v.number(), // 200 (points awarded)
+    awardcoFunded: v.optional(v.boolean()), // has $ been sent to Awardco
+    awardcoFundedAmount: v.optional(v.number()), // $ amount sent
+    awardcoFundedAt: v.optional(v.number()),
+    pointsTransactionId: v.optional(v.string()),
+    status: v.string(), // "pending" | "collected" | "allocated" | "funded" | "reported"
+    month: v.string(),
+    collectedAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_rentPaymentId", ["rentPaymentId"])
+    .index("by_month", ["month"])
+    .index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_renterId", ["renterId"])
+    .index("by_awardcoFunded", ["awardcoFunded"]),
+
+  // Awardco funding ledger - tracks money flow to Awardco
+  awardcoFundingLedger: defineTable({
+    renterId: v.string(),
+    revenueId: v.optional(v.id("homeuRevenue")),
+    rentPaymentId: v.optional(v.id("rentPayments")),
+    type: v.string(), // "payment_funding" | "bulk_transfer" | "adjustment"
+    dollarAmount: v.number(), // actual $ sent to Awardco
+    pointsEquivalent: v.number(), // points this represents
+    description: v.string(),
+    awardcoTransactionId: v.optional(v.string()),
+    status: v.string(), // "pending" | "funded" | "failed"
+    fundedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_renterId", ["renterId"])
+    .index("by_status", ["status"])
+    .index("by_revenueId", ["revenueId"]),
+
+  // Rent payment routing config
+  rentPaymentRouting: defineTable({
+    renterId: v.string(),
+    propertyId: v.string(),
+    monthlyRentAmount: v.number(),
+    isActive: v.boolean(),
+    autoPayEnabled: v.optional(v.boolean()),
+    createdAt: v.number(),
+  }).index("by_renterId", ["renterId"])
+    .index("by_propertyId", ["propertyId"]),
+
+  // Property charge templates
+  propertyChargeTemplates: defineTable({
+    propertyId: v.string(),
+    chargeType: v.string(),
+    name: v.string(),
+    amount: v.number(),
+    frequency: v.string(), // "monthly" | "one-time"
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_propertyId", ["propertyId"]),
+
   // PM onboarding tokens for bank setup
   pmOnboardingTokens: defineTable({
     propertyManagerId: v.id("propertyManagers"),
