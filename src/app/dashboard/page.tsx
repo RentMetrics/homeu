@@ -282,7 +282,7 @@ export default function DashboardPage() {
         </Link>
 
         {/* Lease Card */}
-        <Link href="/lease" className="block">
+        <Link href="/dashboard/lease" className="block">
           <div className="p-6 bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow h-full">
             <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-purple-100 mb-4">
               <FileText className="h-6 w-6 text-purple-600" />
@@ -313,7 +313,7 @@ export default function DashboardPage() {
             )}
           </div>
           <Link
-            href="/properties"
+            href="/dashboard/properties"
             className="flex items-center text-blue-600 font-medium text-sm"
           >
             View all <ArrowRight className="h-4 w-4 ml-1" />
@@ -400,7 +400,7 @@ export default function DashboardPage() {
         )}
 
         <div className="flex justify-center mt-8">
-          <Link href="/properties">
+          <Link href="/dashboard/properties">
             <Button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full">
               <Home className="w-5 h-5 mr-2" /> Find Your Next Home
             </Button>
