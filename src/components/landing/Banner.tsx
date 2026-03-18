@@ -1,12 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React from 'react';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 
 const Banner = () => {
-    const [email, setEmail] = useState('');
     const { user, isLoaded } = useUser();
 
     return (
@@ -31,79 +30,28 @@ const Banner = () => {
                                 tenant-friendly incentives. Rent smart and save more.
                             </p>
 
-                            {/* Signup Form */}
-                            <div className="flex flex-col sm:flex-row gap-4 max-w-lg">
+                            {/* Signup Button */}
+                            <div className="max-w-lg">
                                 {isLoaded && user ? (
                                     <Link
                                         href="/dashboard"
-                                        className="px-8 py-3 h-14 bg-primary-main text-white font-semibold rounded-full transform hover:scale-105 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 text-lg whitespace-nowrap flex items-center justify-center"
+                                        className="inline-flex items-center justify-center px-16 py-4 h-16 bg-primary-main text-white font-semibold rounded-full transform hover:scale-105 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 text-xl"
                                     >
                                         Go to Dashboard
                                     </Link>
                                 ) : (
-                                    <>
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="Your email"
-                                            className="w-full bg-white h-[62px] px-6 py-4 rounded-full text-gray-900 placeholder-gray-500 text-lg focus:outline-none focus:ring-4 focus:ring-green-500/30 transition-all duration-300"
-                                        />
-
-                                        <SignUpButton
-                                            mode="modal"
-                                            forceRedirectUrl="/dashboard"
-                                            signInForceRedirectUrl="/dashboard"
-                                            {...(email ? { initialValues: { emailAddress: email } } : {})}
+                                    <SignUpButton
+                                        mode="modal"
+                                        forceRedirectUrl="/get-started"
+                                        signInForceRedirectUrl="/dashboard"
+                                    >
+                                        <button
+                                            className="px-16 py-4 h-16 bg-primary-main text-white font-semibold rounded-full transform hover:scale-105 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 text-xl w-full sm:w-auto"
                                         >
-                                            <button
-                                                className="px-8 py-3 h-14 bg-primary-main text-white font-semibold rounded-full transform hover:scale-105 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-500/30 text-lg whitespace-nowrap"
-                                            >
-                                                Start now
-                                            </button>
-                                        </SignUpButton>
-                                    </>
+                                            Start Now
+                                        </button>
+                                    </SignUpButton>
                                 )}
-                            </div>
-
-                            <div className=" hidden lg:flex flex-col items-end justify-center gap-4 pt-30">
-                                {/* Top row: images + number */}
-                                <div className="flex items-center gap-4">
-                                    {/* 3 circle images */}
-                                    <div className="flex -space-x-4">
-                                        <Image
-                                            src="/profile1.png"
-                                            alt="User 1"
-                                            width={60}
-                                            height={60}
-                                            className="w-16 h-16 rounded-full border-2 border-black"
-                                        />
-                                        <Image
-                                            src="/profile2.png"
-                                            alt="User 2"
-                                            width={60}
-                                            height={60}
-                                            className="w-16 h-16 rounded-full border-2 border-black"
-                                        />
-                                        <Image
-                                            src="/profile3.png"
-                                            alt="User 3"
-                                            width={60}
-                                            height={60}
-                                            className="w-16 h-16 rounded-full border-2 border-black"
-                                        />
-                                    </div>
-
-                                    {/* Number */}
-                                    <h2 className="text-4xl font-bold text-white">34K</h2>
-                                </div>
-
-                                <div className='flex items-center gap-2.5'>
-                                    {/* Dot */}
-                                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                                    {/* Bottom text */}
-                                    <p className="text-lg text-white font-medium">active users</p>
-                                </div>
                             </div>
 
                         </div>

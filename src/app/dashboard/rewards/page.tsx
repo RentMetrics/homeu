@@ -317,7 +317,7 @@ export default function RewardsPage() {
         </div>
 
         {/* Top Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* HomeU Points */}
           <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
             <CardContent className="p-6 text-center">
@@ -337,22 +337,6 @@ export default function RewardsPage() {
                   <span>Profile: {userPoints.breakdown.profileCompletion}</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Points Per Payment */}
-          <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-            <CardContent className="p-6 text-center">
-              <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
-                <Award className="h-6 w-6 text-amber-600" />
-              </div>
-              <p className="text-sm text-amber-600 font-medium mb-1">
-                Earning Rate
-              </p>
-              <p className="text-4xl font-bold text-amber-700">200</p>
-              <p className="text-xs text-amber-600/60 mt-2">
-                Points per rent payment
-              </p>
             </CardContent>
           </Card>
 

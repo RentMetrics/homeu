@@ -11,6 +11,7 @@ import { useUserSync } from "@/hooks/useUserSync";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import Image from "next/image";
 
 const tabs = [
   { id: "personal", name: "Personal Information", icon: User },
@@ -40,14 +41,14 @@ export default function ProfilePage() {
     income: 0,
   });
 
-  // Update form data when userProfile loads
+  // Update form data when userProfile loads — also pull from Clerk if profile is empty
   useEffect(() => {
     if (userProfile) {
       setFormData({
-        firstName: userProfile.firstName || "",
-        lastName: userProfile.lastName || "",
-        email: userProfile.email || "",
-        phoneNumber: userProfile.phoneNumber || "",
+        firstName: userProfile.firstName || user?.firstName || "",
+        lastName: userProfile.lastName || user?.lastName || "",
+        email: userProfile.email || user?.emailAddresses?.[0]?.emailAddress || "",
+        phoneNumber: userProfile.phoneNumber || user?.phoneNumbers?.[0]?.phoneNumber || "",
         dateOfBirth: userProfile.dateOfBirth || "",
         street: userProfile.street || "",
         city: userProfile.city || "",
@@ -57,13 +58,22 @@ export default function ProfilePage() {
         position: userProfile.position || "",
         income: userProfile.income || 0,
       });
+    } else if (user) {
+      // No profile yet — pre-fill from Clerk
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.emailAddresses?.[0]?.emailAddress || "",
+        phoneNumber: user.phoneNumbers?.[0]?.phoneNumber || "",
+      }));
     }
-  }, [userProfile]);
+  }, [userProfile, user]);
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -71,15 +81,40 @@ export default function ProfilePage() {
     if (!user?.id) return;
 
     try {
+      // Send only fields the mutation accepts (exclude email)
       await updateProfile({
         userId: user.id,
-        ...formData
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        dateOfBirth: formData.dateOfBirth,
+        street: formData.street,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        employer: formData.employer,
+        position: formData.position,
+        income: formData.income,
       });
       toast.success("Profile updated successfully!");
     } catch (error) {
       toast.error("Failed to update profile");
       console.error("Profile update error:", error);
     }
+  };
+
+  // Profile image — use Clerk/Google image, fallback to initials
+  const profileImageUrl = user?.imageUrl;
+  const initials = `${formData.firstName?.[0] || ""}${formData.lastName?.[0] || ""}`.toUpperCase();
+
+  // Format income for display
+  const formatIncome = (value: number) => {
+    if (!value) return "";
+    return value.toLocaleString("en-US");
+  };
+
+  const parseIncome = (value: string) => {
+    return parseInt(value.replace(/,/g, "")) || 0;
   };
 
   return (
@@ -116,16 +151,29 @@ export default function ProfilePage() {
         <CardContent className="p-6">
           {activeTab === "personal" && (
             <div className="space-y-6">
+              {/* Profile Picture */}
               <div className="flex items-center gap-4">
-                <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center">
-                  <User className="h-10 w-10 text-gray-400" />
-                </div>
+                {profileImageUrl ? (
+                  <Image
+                    src={profileImageUrl}
+                    alt="Profile"
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-green-700">{initials || "?"}</span>
+                  </div>
+                )}
                 <div>
-                  <h3 className="text-lg font-semibold">Profile Picture</h3>
-                  <p className="text-sm text-gray-500">Upload a photo to personalize your account</p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    Upload Photo
-                  </Button>
+                  <h3 className="text-lg font-semibold">
+                    {formData.firstName} {formData.lastName}
+                  </h3>
+                  <p className="text-sm text-gray-500">{formData.email}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Photo synced from your Google account
+                  </p>
                 </div>
               </div>
 
@@ -152,8 +200,10 @@ export default function ProfilePage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    disabled
+                    className="bg-gray-50 text-gray-500"
                   />
+                  <p className="text-xs text-gray-400">Managed by your sign-in provider</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
@@ -223,13 +273,16 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="income">Annual Income</Label>
-                  <Input
-                    id="income"
-                    type="number"
-                    value={formData.income}
-                    onChange={(e) => handleInputChange("income", parseInt(e.target.value) || 0)}
-                    placeholder="50000"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      id="income"
+                      value={formatIncome(formData.income)}
+                      onChange={(e) => handleInputChange("income", parseIncome(e.target.value))}
+                      placeholder="150,000"
+                      className="pl-7"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -267,26 +320,9 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="font-medium">Credit Card (****5678)</p>
-                          <p className="text-sm text-gray-500">Backup</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        Edit
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           )}
-
 
           {activeTab === "notifications" && (
             <div className="space-y-6">
@@ -358,27 +394,12 @@ export default function ProfilePage() {
 
                 <Card>
                   <CardContent className="p-4">
-                    <h4 className="font-medium mb-4">Change Password</h4>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="current-password">Current Password</Label>
-                        <Input id="current-password" type="password" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="new-password">New Password</Label>
-                        <Input id="new-password" type="password" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirm-password">Confirm New Password</Label>
-                        <Input id="confirm-password" type="password" />
-                      </div>
-                    </div>
+                    <h4 className="font-medium mb-4">Password</h4>
+                    <p className="text-sm text-gray-500">
+                      Your password is managed by your sign-in provider (Google). To change it, update your Google account settings.
+                    </p>
                   </CardContent>
                 </Card>
-              </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-green-600 hover:bg-green-700">Update Password</Button>
               </div>
             </div>
           )}
@@ -386,4 +407,4 @@ export default function ProfilePage() {
       </Card>
     </div>
   );
-} 
+}
