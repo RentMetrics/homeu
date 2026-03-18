@@ -24,6 +24,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'My Application', href: '/dashboard/application', icon: FileText },
   { name: 'Properties', href: '/properties', icon: Home },
+  { name: 'Lease', href: '/lease', icon: Upload },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Rewards', href: '/dashboard/rewards', icon: Gift },
   { name: 'Setup', href: '/setup', icon: UserCheck },

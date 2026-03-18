@@ -47,18 +47,19 @@ export default function DashboardPage() {
   // Get user display name with robust fallbacks
   const displayName = userProfile?.firstName || user?.firstName || user?.fullName?.split(' ')[0] || 'there';
 
-  // Check if user needs onboarding
+  // Check if user needs onboarding — only show once per session
   useEffect(() => {
-    if (user && isLoaded) {
+    if (user && isLoaded && userProfile) {
       const onboardingComplete = user.unsafeMetadata?.onboardingComplete;
-      const onboardingSeen = user.unsafeMetadata?.onboardingSeen;
-      const localSeen = typeof window !== 'undefined' && localStorage.getItem('homeu_onboarding_seen');
+      const sessionSeen = typeof window !== 'undefined' && sessionStorage.getItem('homeu_onboarding_seen');
 
-      if (!onboardingComplete && !onboardingSeen && !localSeen) {
+      // Only show if profile is incomplete AND hasn't been dismissed this session
+      const profileIncomplete = !userProfile.firstName || !userProfile.street || !userProfile.city;
+      if (!onboardingComplete && !sessionSeen && profileIncomplete) {
         setShowOnboardingModal(true);
       }
     }
-  }, [user, isLoaded]);
+  }, [user, isLoaded, userProfile]);
 
   // Detect user location via browser geolocation
   useEffect(() => {
@@ -331,9 +332,14 @@ export default function DashboardPage() {
                 ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
                 : null;
               const imgSrc = uploadedImg || googleImg;
+              const score = property.homeuScore;
 
               return (
-                <div key={property._id} className="rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+                <Link
+                  key={property._id}
+                  href={`/dashboard/properties/${property.propertyId}`}
+                  className="block rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow"
+                >
                   <div className="relative h-44">
                     {imgSrc ? (
                       <img
@@ -357,6 +363,13 @@ export default function DashboardPage() {
                         <span className="text-yellow-500">★</span> {property.googleRating}
                       </div>
                     )}
+                    {score && score > 0 && (
+                      <div className={`absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-bold ${
+                        score >= 80 ? 'bg-green-500 text-white' : score >= 60 ? 'bg-blue-500 text-white' : 'bg-gray-500 text-white'
+                      }`}>
+                        {score}
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h4 className="font-semibold text-sm truncate">{property.propertyName || "Property"}</h4>
@@ -364,11 +377,18 @@ export default function DashboardPage() {
                       <MapPin className="h-3 w-3" />
                       {property.city}, {property.state}
                     </p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      {property.totalUnits} units · Built {property.yearBuilt}
-                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-gray-400 text-xs">
+                        {property.totalUnits} units · Built {property.yearBuilt}
+                      </p>
+                      {property.averageUnitSize > 0 && (
+                        <p className="text-gray-400 text-xs">
+                          ~{property.averageUnitSize} sqft
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -398,7 +418,12 @@ export default function DashboardPage() {
       {/* Onboarding Modal */}
       <OnboardingModal
         isOpen={showOnboardingModal}
-        onClose={() => setShowOnboardingModal(false)}
+        onClose={() => {
+          setShowOnboardingModal(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('homeu_onboarding_seen', 'true');
+          }
+        }}
       />
     </div>
   );

@@ -339,21 +339,21 @@ export default function PropertiesPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Properties</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {isSearching
-              ? 'Searching...'
-              : <>{filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
-                {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
-                {canLoadMore && <span className="text-blue-500"> (more available)</span>}</>
-            }
-          </p>
-        </div>
-        <Link href="/dashboard">
-          <Button variant="outline">Back to Dashboard</Button>
-        </Link>
+      <Link href="/dashboard">
+        <Button variant="ghost" size="sm" className="mb-4 text-gray-500 hover:text-gray-700">
+          ← Back to Dashboard
+        </Button>
+      </Link>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Properties</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          {isSearching
+            ? 'Searching...'
+            : <>{filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
+              {searchQuery && <span> for &quot;{searchQuery}&quot;</span>}
+              {canLoadMore && <span className="text-blue-500"> (more available)</span>}</>
+          }
+        </p>
       </div>
 
       {/* Search Section */}

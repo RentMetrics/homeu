@@ -99,45 +99,80 @@ export default function LeasePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-10 px-4">
       {/* Top Bar with Dashboard Button */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Manage Your Lease</h1>
-          <p className="text-muted-foreground">Upload your lease and view a summary and highlights.</p>
-        </div>
+      <div className="mb-4">
         <Link href="/dashboard">
-          <Button variant="outline" className="ml-4">Back to Dashboard</Button>
+          <Button variant="ghost" size="sm" className="mb-4 text-gray-500 hover:text-gray-700">
+            ← Back to Dashboard
+          </Button>
         </Link>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Manage Your Lease</h1>
+        <p className="text-muted-foreground">Upload your lease and view a summary and highlights.</p>
       </div>
 
-      {/* Lease Abstract & Highlights */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle>Lease Abstract</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {latestLease ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-4 mb-2">
-                {latestLease.term && (
-                  <div className="bg-white border rounded px-3 py-1 text-sm font-medium">Term: {latestLease.term}</div>
-                )}
-                {latestLease.rentalAmount && (
-                  <div className="bg-white border rounded px-3 py-1 text-sm font-medium">Rental Amount: {latestLease.rentalAmount}</div>
-                )}
-              </div>
-              <div className="text-gray-700 text-base">
+      {/* Lease Dashboard */}
+      {latestLease ? (
+        <div className="space-y-4">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-gray-500 mb-1">Monthly Rent</p>
+                <p className="text-xl font-bold text-green-700">
+                  {latestLease.rentalAmount || "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-gray-500 mb-1">Lease Term</p>
+                <p className="text-xl font-bold text-blue-700">
+                  {latestLease.term || "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-gray-500 mb-1">Status</p>
+                <p className="text-xl font-bold text-purple-700">
+                  {latestLease.status === "complete" ? "Active" : "Processing"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-gray-500 mb-1">Uploaded</p>
+                <p className="text-sm font-bold text-gray-700">
+                  {new Date(latestLease.uploadedAt).toLocaleDateString()}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Abstract */}
+          <Card className="bg-blue-50 border-blue-200">
+            <CardHeader>
+              <CardTitle>Lease Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-gray-700 text-base leading-relaxed">
                 {latestLease.abstract ? (
                   <>{latestLease.abstract}</>
                 ) : (
-                  <span className="italic text-gray-400">No abstract available yet. (Will appear after lease review.)</span>
+                  <span className="italic text-gray-400">
+                    Processing your lease... The AI summary will appear here shortly.
+                  </span>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="text-gray-400 italic">No lease uploaded yet.</div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <Card className="bg-gray-50 border-dashed">
+          <CardContent className="p-8 text-center">
+            <p className="text-gray-500">No lease uploaded yet. Upload your lease below to see a detailed dashboard.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Renewal Strategy (shown when lease has rental amount) */}
       {latestLease?.rentalAmount && (() => {
