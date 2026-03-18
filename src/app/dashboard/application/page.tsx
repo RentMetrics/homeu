@@ -104,6 +104,16 @@ export default function MyApplicationPage() {
       toast.error("Please fill in at least your full name and email.");
       return;
     }
+    // Store application data for the send modal to access
+    if (typeof window !== 'undefined') {
+      (window as any).__homeuApplicationData = {
+        formData: form,
+        coApplicants,
+        occupants,
+        vehicles,
+        incomeSources,
+      };
+    }
     setShowSendModal(true);
   };
 

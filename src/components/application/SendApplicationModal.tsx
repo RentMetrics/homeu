@@ -64,13 +64,36 @@ export function SendApplicationModal({
 
       // Then handle the send method
       if (selectedMethod === "email") {
-        // For now, open the user's email client with a pre-filled email
-        const subject = encodeURIComponent("HomeU Lease Application");
-        const body = encodeURIComponent(
-          `Hi,\n\nI've submitted my lease application through HomeU. Please review at your convenience.\n\nApplication Reference: ${applicationId || "Pending"}\n\nThank you!`
-        );
-        window.open(`mailto:${recipientEmail}?subject=${subject}&body=${body}`, "_blank");
-        toast.success("Application saved! Email client opened.");
+        // Send via HomeU backend (Resend)
+        const res = await fetch("/api/applications/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pmEmail: recipientEmail,
+            pmName: "",
+            propertyName: "",
+            propertyAddress: "",
+            applicationData: {
+              formData: (window as any).__homeuApplicationData?.formData,
+              coApplicants: (window as any).__homeuApplicationData?.coApplicants,
+              occupants: (window as any).__homeuApplicationData?.occupants,
+              vehicles: (window as any).__homeuApplicationData?.vehicles,
+              incomeSources: (window as any).__homeuApplicationData?.incomeSources,
+            },
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("Application sent to property manager!");
+        } else {
+          // Fallback to mailto if API fails
+          const subject = encodeURIComponent("HomeU Lease Application");
+          const body = encodeURIComponent(
+            `Hi,\n\nI've submitted my lease application through HomeU. Please review at your convenience.\n\nApplication Reference: ${applicationId || "Pending"}\n\nThank you!`
+          );
+          window.open(`mailto:${recipientEmail}?subject=${subject}&body=${body}`, "_blank");
+          toast.success("Application saved! Email client opened as fallback.");
+        }
       } else if (selectedMethod === "text") {
         // Open SMS with pre-filled message
         const message = encodeURIComponent(
