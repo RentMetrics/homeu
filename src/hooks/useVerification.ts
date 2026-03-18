@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 interface VerificationStatus {
   isVerified: boolean;
   hasCompletedOnboarding: boolean;
   verificationSteps: {
+    profile: boolean;
+    property: boolean;
     identity: boolean;
     bank: boolean;
     credit: boolean;
@@ -14,65 +18,97 @@ interface VerificationStatus {
 
 export function useVerification() {
   const { user, isLoaded } = useUser();
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>({
-    isVerified: false,
-    hasCompletedOnboarding: false,
-    verificationSteps: {
-      identity: false,
-      bank: false,
-      credit: false,
-      rentalHistory: false,
-    }
-  });
+
+  // Query the actual renter profile from Convex
+  const userProfile = useQuery(
+    api.users.getUserProfile,
+    isLoaded && user ? { userId: user.id } : 'skip'
+  );
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      // Check if user has completed onboarding
-      const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${user.id}`);
-      
-      if (!hasCompletedOnboarding) {
-        // Show verification modal for new users
-        setShowVerificationModal(true);
-      } else {
-        // Check verification status from user metadata or local storage
-        const storedStatus = localStorage.getItem(`verification_status_${user.id}`);
-        if (storedStatus) {
-          setVerificationStatus(JSON.parse(storedStatus));
-        }
-      }
+  // Derive verification status from real database state
+  const verificationStatus: VerificationStatus = (() => {
+    if (!userProfile) {
+      return {
+        isVerified: false,
+        hasCompletedOnboarding: false,
+        verificationSteps: {
+          profile: false,
+          property: false,
+          identity: false,
+          bank: false,
+          credit: false,
+          rentalHistory: false,
+        },
+      };
     }
-  }, [isLoaded, user]);
 
-  const markStepComplete = (step: keyof VerificationStatus['verificationSteps']) => {
-    const updatedStatus = {
-      ...verificationStatus,
-      verificationSteps: {
-        ...verificationStatus.verificationSteps,
-        [step]: true,
-      }
+    const profileComplete = !!(
+      userProfile.firstName &&
+      userProfile.lastName &&
+      userProfile.phoneNumber &&
+      userProfile.dateOfBirth &&
+      userProfile.street &&
+      userProfile.city &&
+      userProfile.state &&
+      userProfile.zipCode
+    );
+
+    const propertyLinked = !!(
+      userProfile.propertyId &&
+      userProfile.propertyLinkStatus &&
+      userProfile.propertyLinkStatus !== 'unlinked'
+    );
+
+    const identityVerified = !!(
+      userProfile.verified ||
+      userProfile.verificationStatus === 'VERIFIED' ||
+      userProfile.verificationStatus === 'verified'
+    );
+
+    const bankLinked = !!userProfile.straddleCustomerId;
+
+    // Credit and rental history — check localStorage as fallback
+    // until we have dedicated tracking for these
+    const storedStatus = typeof window !== 'undefined' && user
+      ? localStorage.getItem(`verification_status_${user.id}`)
+      : null;
+    const stored = storedStatus ? JSON.parse(storedStatus) : null;
+
+    const creditConnected = stored?.verificationSteps?.credit || false;
+    const rentalHistoryDone = stored?.verificationSteps?.rentalHistory || false;
+
+    const steps = {
+      profile: profileComplete,
+      property: propertyLinked,
+      identity: identityVerified,
+      bank: bankLinked,
+      credit: creditConnected,
+      rentalHistory: rentalHistoryDone,
     };
 
-    // Check if all required steps are complete
-    const allRequiredComplete = updatedStatus.verificationSteps.identity && 
-                               updatedStatus.verificationSteps.bank && 
-                               updatedStatus.verificationSteps.credit;
+    // All required steps: profile, property, identity, bank
+    const allRequiredComplete = steps.profile && steps.identity && steps.bank;
 
-    if (allRequiredComplete) {
-      updatedStatus.isVerified = true;
-      updatedStatus.hasCompletedOnboarding = true;
+    return {
+      isVerified: allRequiredComplete,
+      hasCompletedOnboarding: allRequiredComplete,
+      verificationSteps: steps,
+    };
+  })();
+
+  const markStepComplete = (step: keyof VerificationStatus['verificationSteps']) => {
+    // For steps tracked in localStorage (credit, rentalHistory)
+    if (user && (step === 'credit' || step === 'rentalHistory')) {
+      const storedStatus = localStorage.getItem(`verification_status_${user.id}`);
+      const stored = storedStatus ? JSON.parse(storedStatus) : {
+        verificationSteps: { credit: false, rentalHistory: false },
+      };
+      stored.verificationSteps[step] = true;
+      localStorage.setItem(`verification_status_${user.id}`, JSON.stringify(stored));
     }
-
-    setVerificationStatus(updatedStatus);
-
-    // Store in localStorage
-    if (user) {
-      localStorage.setItem(`verification_status_${user.id}`, JSON.stringify(updatedStatus));
-      if (updatedStatus.hasCompletedOnboarding) {
-        localStorage.setItem(`onboarding_completed_${user.id}`, 'true');
-      }
-    }
+    // profile, property, identity, bank are derived from DB state automatically
   };
 
   const completeOnboarding = () => {
@@ -86,16 +122,6 @@ export function useVerification() {
     if (user) {
       localStorage.removeItem(`verification_status_${user.id}`);
       localStorage.removeItem(`onboarding_completed_${user.id}`);
-      setVerificationStatus({
-        isVerified: false,
-        hasCompletedOnboarding: false,
-        verificationSteps: {
-          identity: false,
-          bank: false,
-          credit: false,
-          rentalHistory: false,
-        }
-      });
       setShowVerificationModal(true);
     }
   };
@@ -109,4 +135,4 @@ export function useVerification() {
     resetVerification,
     isLoaded,
   };
-} 
+}
