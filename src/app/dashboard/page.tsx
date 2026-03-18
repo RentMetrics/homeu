@@ -384,8 +384,8 @@ export default function DashboardPage() {
                       {property.averageUnitSize > 0 && ` · ~${property.averageUnitSize} sqft`}
                     </p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      <DealScoreBadge propertyId={property.propertyId} property={property} />
-                      <LeverageBadge propertyId={property.propertyId} property={property} />
+                      <DealScoreBadge propertyId={property.propertyId} />
+                      <LeverageBadge propertyId={property.propertyId} />
                     </div>
                   </div>
                 </Link>
