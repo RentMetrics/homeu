@@ -14,6 +14,8 @@ import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { DealScoreBadge } from '@/components/market/DealScoreBadge';
+import { LeverageBadge } from '@/components/market/LeverageBadge';
 
 // Helper function to calculate profile completeness
 function getProfileCompleteness(profile: any): number {
@@ -377,15 +379,13 @@ export default function DashboardPage() {
                       <MapPin className="h-3 w-3" />
                       {property.city}, {property.state}
                     </p>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-gray-400 text-xs">
-                        {property.totalUnits} units · Built {property.yearBuilt}
-                      </p>
-                      {property.averageUnitSize > 0 && (
-                        <p className="text-gray-400 text-xs">
-                          ~{property.averageUnitSize} sqft
-                        </p>
-                      )}
+                    <p className="text-gray-400 text-xs mt-1">
+                      {property.totalUnits} units · Built {property.yearBuilt}
+                      {property.averageUnitSize > 0 && ` · ~${property.averageUnitSize} sqft`}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <DealScoreBadge propertyId={property.propertyId} property={property} />
+                      <LeverageBadge propertyId={property.propertyId} property={property} />
                     </div>
                   </div>
                 </Link>
