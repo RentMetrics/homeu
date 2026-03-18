@@ -29,8 +29,7 @@ const adminNavigation = [
   { name: 'Properties', href: '/admin/properties', icon: Building2 },
   { name: 'Property Managers', href: '/admin/property-managers', icon: UserCheck },
   { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
-  { name: 'Data Management', href: '/admin/data', icon: FileSpreadsheet },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
+  { name: 'Data Management', href: '/admin/data-management', icon: FileSpreadsheet },
 ];
 
 interface AdminNavigationProps {
@@ -83,7 +82,7 @@ export function AdminNavigation({ children }: AdminNavigationProps) {
                   href={item.href}
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-                    pathname === item.href
+                    (item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href))
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   )}
@@ -91,7 +90,7 @@ export function AdminNavigation({ children }: AdminNavigationProps) {
                   <Icon
                     className={cn(
                       'mr-3 h-5 w-5',
-                      pathname === item.href
+                      (item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href))
                         ? 'text-white'
                         : 'text-gray-400 group-hover:text-white'
                     )}
