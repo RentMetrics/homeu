@@ -22,11 +22,11 @@ import { Button } from './ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Rewards', href: '/dashboard/rewards', icon: Gift },
   { name: 'My Application', href: '/dashboard/application', icon: FileText },
   { name: 'Properties', href: '/dashboard/properties', icon: Home },
-  { name: 'Lease', href: '/dashboard/lease', icon: Upload },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Rewards', href: '/dashboard/rewards', icon: Gift },
+  { name: 'Lease', href: '/dashboard/lease', icon: Upload },
   { name: 'Setup', href: '/setup', icon: UserCheck },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

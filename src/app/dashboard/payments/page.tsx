@@ -191,13 +191,13 @@ export default function PaymentsPage() {
 
           {/* Payment Method Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 h-12">
-              <TabsTrigger value="traditional" className="flex items-center gap-2 text-sm">
-                <CreditCard className="h-4 w-4" />
+            <TabsList className="grid w-full grid-cols-2 h-14 bg-gray-100 p-1">
+              <TabsTrigger value="traditional" className="flex items-center gap-2 text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg h-full">
+                <CreditCard className="h-5 w-5" />
                 Bank / Card
               </TabsTrigger>
-              <TabsTrigger value="crypto" className="flex items-center gap-2 text-sm">
-                <Wallet className="h-4 w-4" />
+              <TabsTrigger value="crypto" className="flex items-center gap-2 text-sm font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg h-full">
+                <Wallet className="h-5 w-5" />
                 Cryptocurrency
               </TabsTrigger>
             </TabsList>
