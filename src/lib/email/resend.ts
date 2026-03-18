@@ -10,10 +10,16 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = 'HomeU <noreply@homeu.co>';
 const SUPPORT_EMAIL = 'support@homeu.co';
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+  return new Resend(apiKey);
+}
 
 interface SendApplicationEmailParams {
   pmEmail: string;
@@ -38,7 +44,7 @@ export async function sendApplicationEmail(params: SendApplicationEmailParams) {
       }]
     : [];
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to: pmEmail,
     subject: `New Rental Application — ${applicantName} for ${propertyName}`,
@@ -95,7 +101,7 @@ interface SendPmOutreachEmailParams {
 export async function sendPmOutreachEmail(params: SendPmOutreachEmailParams) {
   const { pmEmail, pmName, renterName, propertyName, propertyAddress } = params;
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to: pmEmail,
     subject: `${renterName} wants to pay rent through HomeU — ${propertyName}`,
