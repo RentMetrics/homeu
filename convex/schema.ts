@@ -31,8 +31,143 @@ export default defineSchema({
       email: v.string(),
       phone: v.optional(v.string()),
     })),
+    // Richer profile objects (written by renters.update)
+    currentAddress: v.optional(v.object({
+      street: v.string(),
+      city: v.string(),
+      state: v.string(),
+      zipCode: v.string(),
+      country: v.string(),
+    })),
+    employment: v.optional(v.object({
+      employer: v.string(),
+      position: v.string(),
+      income: v.number(),
+      employmentStartDate: v.string(),
+    })),
+    preferences: v.optional(v.object({
+      preferredPropertyTypes: v.array(v.string()),
+      maxRent: v.number(),
+      preferredLocations: v.array(v.string()),
+      moveInDate: v.optional(v.string()),
+    })),
+    creditInfo: v.optional(v.any()),
+    // Argyle verified employment (written by argyle.ts)
+    argyleUserId: v.optional(v.string()),
+    argyleAccountId: v.optional(v.string()),
+    employmentVerified: v.optional(v.boolean()),
+    employmentVerificationDate: v.optional(v.number()),
+    verifiedEmployer: v.optional(v.string()),
+    verifiedPosition: v.optional(v.string()),
+    verifiedIncome: v.optional(v.number()),
+    verifiedPayFrequency: v.optional(v.string()),
+    verifiedEmploymentStartDate: v.optional(v.string()),
+    incomeVerificationMethod: v.optional(v.string()),
+    lastIncomeSync: v.optional(v.number()),
   }).index("by_userId", ["userId"])
-    .index("by_propertyId", ["propertyId"]),
+    .index("by_propertyId", ["propertyId"])
+    .index("by_argyleUserId", ["argyleUserId"]),
+
+  // Renter rental history (used by convex/rentalHistory.ts)
+  rentalHistory: defineTable({
+    userId: v.string(),
+    address: v.string(),
+    city: v.string(),
+    state: v.string(),
+    zipCode: v.string(),
+    propertyType: v.string(),
+    monthlyRent: v.number(),
+    moveInDate: v.number(),
+    moveOutDate: v.optional(v.number()),
+    landlordName: v.optional(v.string()),
+    landlordContact: v.optional(v.string()),
+    landlordEmail: v.optional(v.string()),
+    paymentHistory: v.object({
+      onTimePayments: v.number(),
+      latePayments: v.number(),
+      totalPayments: v.number(),
+    }),
+    status: v.string(), // "current" | "past"
+    verified: v.boolean(),
+    verificationMethod: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"]),
+
+  // Argyle-verified employment history (used by convex/argyle.ts)
+  employmentHistory: defineTable({
+    userId: v.string(),
+    argyleUserId: v.string(),
+    argyleEmploymentId: v.string(),
+    employerName: v.string(),
+    jobTitle: v.string(),
+    startDate: v.string(),
+    endDate: v.optional(v.string()),
+    isCurrent: v.boolean(),
+    basePay: v.optional(v.number()),
+    payFrequency: v.optional(v.string()),
+    employerCity: v.optional(v.string()),
+    employerState: v.optional(v.string()),
+    dataSource: v.string(), // "argyle" | "manual"
+    verifiedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_argyleEmploymentId", ["argyleEmploymentId"]),
+
+  // PMS (Property Management Software) connections per property.
+  // Lets a renter submit their HomeU application directly into the
+  // property's management system instead of filling out its online form.
+  pmsConnections: defineTable({
+    propertyId: v.string(), // multifamilyproperties.propertyId
+    provider: v.string(), // "entrata" | "yardi" | "realpage" | "buildium" | "appfolio" | "rentmanager" | "email"
+    status: v.string(), // "active" | "inactive" | "pending"
+    // Provider-side identifiers for this property
+    externalPropertyId: v.optional(v.string()),
+    externalSourceId: v.optional(v.string()), // e.g. Yardi ILS source / Entrata lead source
+    // Where the provider API lives for this PM company (per-tenant base URLs are common)
+    apiBaseUrl: v.optional(v.string()),
+    // Name of the server-side env var group holding credentials (never store secrets in the DB)
+    credentialRef: v.optional(v.string()),
+    // Fallback contact if direct submission fails
+    fallbackEmail: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    lastSubmissionAt: v.optional(v.number()),
+    lastSubmissionStatus: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_propertyId", ["propertyId"])
+    .index("by_provider", ["provider"])
+    .index("by_status", ["status"]),
+
+  // A renter's application submissions to properties (via PMS or email fallback)
+  applicationSubmissions: defineTable({
+    userId: v.string(),
+    propertyId: v.optional(v.string()),
+    propertyName: v.string(),
+    propertyAddress: v.optional(v.string()),
+    pmCompanyName: v.optional(v.string()),
+    channel: v.string(), // "pms" | "email"
+    provider: v.optional(v.string()), // pms provider when channel === "pms"
+    pmsConnectionId: v.optional(v.id("pmsConnections")),
+    status: v.string(), // "submitted" | "received" | "under_review" | "approved" | "rejected" | "failed"
+    externalApplicationId: v.optional(v.string()), // id assigned by the PMS
+    // Snapshot of the standardized application payload that was sent
+    payloadSnapshot: v.optional(v.any()),
+    sectionsIncluded: v.optional(v.array(v.string())), // e.g. ["personal","employment","rental_history","financial"]
+    error: v.optional(v.string()),
+    events: v.optional(v.array(v.object({
+      at: v.number(),
+      status: v.string(),
+      note: v.optional(v.string()),
+    }))),
+    submittedAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_propertyId", ["propertyId"])
+    .index("by_status", ["status"]),
   properties: defineTable({
     title: v.string(),
     type: v.string(),
@@ -321,6 +456,7 @@ export default defineSchema({
     })),
     subtotal: v.number(),
     homeuPlatformFee: v.number(), // $9.99
+    homeuConvenienceFee: v.optional(v.number()),
     totalDue: v.number(),
     status: v.string(), // "draft" | "sent" | "overdue" | "partial" | "paid"
     dueDate: v.number(),
@@ -330,6 +466,7 @@ export default defineSchema({
     viewedAt: v.optional(v.number()),
     sentAt: v.optional(v.number()),
     paidAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
   }).index("by_renterId_month", ["renterId", "month"])
     .index("by_renterId", ["renterId"])
     .index("by_month", ["month"])
@@ -350,6 +487,7 @@ export default defineSchema({
       rewardsFunding: v.number(), // $2.00
       creditReportingFee: v.number(), // $3.00
       pointsAwarded: v.number(), // 200
+      pointsConversion: v.optional(v.number()),
     }),
     paymentMethod: v.string(), // "ach" | "crypto"
     paykey: v.optional(v.string()),
@@ -497,12 +635,17 @@ export default defineSchema({
   rentPaymentRouting: defineTable({
     renterId: v.string(),
     propertyId: v.string(),
+    propertyManagerId: v.optional(v.string()),
     monthlyRentAmount: v.number(),
+    dueDay: v.optional(v.number()),
     isActive: v.boolean(),
     autoPayEnabled: v.optional(v.boolean()),
+    straddlePaymentMethodId: v.optional(v.string()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   }).index("by_renterId", ["renterId"])
-    .index("by_propertyId", ["propertyId"]),
+    .index("by_propertyId", ["propertyId"])
+    .index("by_propertyManagerId", ["propertyManagerId"]),
 
   // Property charge templates
   propertyChargeTemplates: defineTable({
@@ -514,6 +657,127 @@ export default defineSchema({
     isActive: v.boolean(),
     createdAt: v.number(),
   }).index("by_propertyId", ["propertyId"]),
+
+  // Achievement definitions (gamification layer — convex/achievements.ts)
+  achievementDefinitions: defineTable({
+    achievementId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.string(),
+    iconName: v.string(),
+    badgeColor: v.string(),
+    requirements: v.object({
+      type: v.string(),
+      target: v.number(),
+      metric: v.string(),
+    }),
+    pointsAwarded: v.number(),
+    isHidden: v.boolean(),
+    displayOrder: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_achievementId", ["achievementId"])
+    .index("by_isActive", ["isActive"])
+    .index("by_category", ["category"]),
+
+  // Per-user achievement progress
+  achievementProgress: defineTable({
+    userId: v.string(),
+    achievementId: v.string(),
+    achievementDefinitionId: v.id("achievementDefinitions"),
+    currentValue: v.number(),
+    targetValue: v.number(),
+    percentComplete: v.number(),
+    status: v.string(), // "in_progress" | "completed"
+    unlockedAt: v.optional(v.number()),
+    notified: v.boolean(),
+    celebrationShown: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_userId_achievementId", ["userId", "achievementId"]),
+
+  // Unlocked achievements per user
+  userAchievements: defineTable({
+    userId: v.string(),
+    achievementId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    iconUrl: v.optional(v.string()),
+    pointsAwarded: v.number(),
+    unlockedAt: v.number(),
+    metadata: v.optional(v.any()),
+  }).index("by_userId", ["userId"])
+    .index("by_userId_achievementId", ["userId", "achievementId"]),
+
+  // Referral tracking (queried by achievements)
+  referrals: defineTable({
+    referrerId: v.string(),
+    referredUserId: v.optional(v.string()),
+    referredEmail: v.optional(v.string()),
+    status: v.string(), // "pending" | "completed"
+    completedAt: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+  }).index("by_referrerId", ["referrerId"]),
+
+  // PM subscriptions to premium features (rent predictions etc.)
+  propertyManagerSubscriptions: defineTable({
+    propertyManagerId: v.string(),
+    organizationId: v.string(),
+    plan: v.string(),
+    features: v.array(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
+    status: v.string(),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    cancelAtPeriodEnd: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_propertyManagerId", ["propertyManagerId"]),
+
+  // Monthly rent collection predictions per PM
+  rentPredictions: defineTable({
+    propertyManagerId: v.string(),
+    organizationId: v.string(),
+    month: v.string(), // "YYYY-MM"
+    totalResidents: v.number(),
+    predictedPayments: v.number(),
+    predictedNonPayments: v.number(),
+    uncertainPayments: v.number(),
+    predictedCollectionRate: v.number(),
+    predictedCollectionAmount: v.number(),
+    totalExpectedRent: v.number(),
+    confidence: v.string(),
+    residentPredictions: v.array(v.object({
+      renterId: v.string(),
+      renterName: v.string(),
+      propertyId: v.string(),
+      propertyAddress: v.string(),
+      rentAmount: v.number(),
+      prediction: v.string(),
+      confidenceScore: v.number(),
+      reason: v.string(),
+      lastChecked: v.number(),
+    })),
+    metadata: v.optional(v.any()),
+    generatedAt: v.number(),
+  }).index("by_propertyManagerId", ["propertyManagerId"])
+    .index("by_propertyManagerId_month", ["propertyManagerId", "month"]),
+
+  // Bank balance checks (Straddle) backing rent predictions
+  balanceChecks: defineTable({
+    renterId: v.string(),
+    propertyManagerId: v.string(),
+    checkType: v.string(),
+    straddleCheckId: v.optional(v.string()),
+    hasSufficientFunds: v.boolean(),
+    rentAmount: v.number(),
+    availableBalance: v.optional(v.number()),
+    accountStatus: v.string(),
+    checkedAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_renterId", ["renterId"])
+    .index("by_propertyManagerId", ["propertyManagerId"]),
 
   // PM onboarding tokens for bank setup
   pmOnboardingTokens: defineTable({
