@@ -22,6 +22,7 @@ import {
   Home,
 } from "lucide-react";
 import { MarketAnalysisPanel } from "@/components/market/MarketAnalysisPanel";
+import { PropertyScoreCard, PropertyScoreBadge } from "@/components/scores/PropertyScoreCard";
 
 export const dynamic = 'force-dynamic';
 
@@ -125,7 +126,7 @@ export default function PublicPropertyDetailPage() {
       {/* Hero Section */}
       <Card className="overflow-hidden">
         <div className="relative h-96">
-          <HeroImage property={property} primaryImageUrl={primaryImage?.url} />
+          <HeroImage property={property} primaryImageUrl={primaryImage?.url ?? undefined} />
 
           <div className="absolute top-4 right-4 flex gap-2">
             {property.googleRating && (
@@ -134,12 +135,7 @@ export default function PublicPropertyDetailPage() {
                 {property.googleRating.toFixed(1)}
               </Badge>
             )}
-            {property.homeuScore && (
-              <Badge className={`${getScoreColor(property.homeuScore)} border text-base py-1 px-3`}>
-                <Home className="h-4 w-4 mr-1" />
-                {property.homeuScore}
-              </Badge>
-            )}
+            <PropertyScoreBadge propertyId={propertyId} />
           </div>
         </div>
 
@@ -180,7 +176,7 @@ export default function PublicPropertyDetailPage() {
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-2xl font-bold">{property.occupancyRate || 85}%</div>
+                  <div className="text-2xl font-bold">{(property as { occupancyRate?: number }).occupancyRate || 85}%</div>
                   <div className="text-sm text-muted-foreground">Occupied</div>
                 </div>
               </div>
@@ -197,6 +193,8 @@ export default function PublicPropertyDetailPage() {
       </Card>
 
       {/* Market Intelligence Analysis */}
+      <PropertyScoreCard propertyId={propertyId} />
+
       <MarketAnalysisPanel propertyId={propertyId} />
 
       {/* Amenities */}

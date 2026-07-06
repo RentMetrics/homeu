@@ -70,23 +70,9 @@ export const enrichPropertyWithGoogleData = mutation({
     
     // Get Google Places data
     const googleData = await searchPlaceByAddress(address);
-    
-    let enrichedData: any = {
-      homeuScore: Math.floor(Math.random() * 20) + 80, // Random score between 80-100
-      scoreFactors: [
-        "Great location",
-        "Modern amenities",
-        "Responsive management",
-        "Good value for money"
-      ],
-      amenities: [
-        "Pool",
-        "Gym",
-        "Parking",
-        "Laundry",
-        "Pet friendly"
-      ]
-    };
+    // Only persist real Google data — the renter-facing score is computed live
+    // from market data (PropertyScoreCard); never fabricate scores or amenities.
+    let enrichedData: any = {};
 
     // Add Google data if available
     if (googleData) {
@@ -157,23 +143,9 @@ export const enrichPropertiesBatch = mutation({
         
         // Get Google Places data
         const googleData = await searchPlaceByAddress(address);
-        
-        let enrichedData: any = {
-          homeuScore: Math.floor(Math.random() * 20) + 80,
-          scoreFactors: [
-            "Great location",
-            "Modern amenities",
-            "Responsive management",
-            "Good value for money"
-          ],
-          amenities: [
-            "Pool",
-            "Gym",
-            "Parking",
-            "Laundry",
-            "Pet friendly"
-          ]
-        };
+        // Only persist real Google data — the renter-facing score is computed live
+        // from market data (PropertyScoreCard); never fabricate scores or amenities.
+        let enrichedData: any = {};
 
         // Add Google data if available
         if (googleData) {
@@ -218,23 +190,9 @@ export const enrichAllProperties = mutation({
         
         // Get Google Places data
         const googleData = await searchPlaceByAddress(address);
-        
-        let enrichedData: any = {
-          homeuScore: Math.floor(Math.random() * 20) + 80,
-          scoreFactors: [
-            "Great location",
-            "Modern amenities",
-            "Responsive management",
-            "Good value for money"
-          ],
-          amenities: [
-            "Pool",
-            "Gym",
-            "Parking",
-            "Laundry",
-            "Pet friendly"
-          ]
-        };
+        // Only persist real Google data — the renter-facing score is computed live
+        // from market data (PropertyScoreCard); never fabricate scores or amenities.
+        let enrichedData: any = {};
 
         // Add Google data if available
         if (googleData) {

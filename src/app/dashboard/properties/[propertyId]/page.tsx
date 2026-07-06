@@ -21,17 +21,10 @@ import {
   Home,
 } from "lucide-react";
 import { MarketAnalysisPanel } from "@/components/market/MarketAnalysisPanel";
+import { PropertyScoreCard, PropertyScoreBadge } from "@/components/scores/PropertyScoreCard";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-// Helper function to get score color
-function getScoreColor(score: number) {
-  if (score >= 90) return "bg-green-100 text-green-800 border-green-300";
-  if (score >= 80) return "bg-blue-100 text-blue-800 border-blue-300";
-  if (score >= 70) return "bg-yellow-100 text-yellow-800 border-yellow-300";
-  return "bg-muted text-foreground border-gray-300";
-}
 
 export default function PropertyDetailPage() {
   const params = useParams();
@@ -142,12 +135,7 @@ export default function PropertyDetailPage() {
                 {property.googleRating.toFixed(1)}
               </Badge>
             )}
-            {property.homeuScore && (
-              <Badge className={`${getScoreColor(property.homeuScore)} border text-base py-1 px-3`}>
-                <Home className="h-4 w-4 mr-1" />
-                {property.homeuScore}
-              </Badge>
-            )}
+            <PropertyScoreBadge propertyId={propertyId} />
           </div>
         </div>
 
@@ -189,7 +177,7 @@ export default function PropertyDetailPage() {
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-2xl font-bold">{property.occupancyRate || 85}%</div>
+                  <div className="text-2xl font-bold">{(property as { occupancyRate?: number }).occupancyRate || 85}%</div>
                   <div className="text-sm text-muted-foreground">Occupied</div>
                 </div>
               </div>
@@ -207,6 +195,8 @@ export default function PropertyDetailPage() {
       </Card>
 
       {/* Market Intelligence Analysis */}
+      <PropertyScoreCard propertyId={propertyId} />
+
       <MarketAnalysisPanel propertyId={propertyId} />
 
       {/* Amenities */}
