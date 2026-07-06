@@ -1,0 +1,22 @@
+{
+  "name": "homeu-pm-scores",
+  "type": "module",
+  "collaborators": [
+    "HomeU <dev@homeu.co>"
+  ],
+  "description": "WASM module for property manager scoring calculations",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "homeu_pm_scores_bg.wasm",
+    "homeu_pm_scores.js",
+    "homeu_pm_scores_bg.js",
+    "homeu_pm_scores.d.ts"
+  ],
+  "main": "homeu_pm_scores.js",
+  "types": "homeu_pm_scores.d.ts",
+  "sideEffects": [
+    "./homeu_pm_scores.js",
+    "./snippets/*"
+  ]
+}

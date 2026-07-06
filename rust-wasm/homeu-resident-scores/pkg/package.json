@@ -1,0 +1,22 @@
+{
+  "name": "homeu-resident-scores",
+  "type": "module",
+  "collaborators": [
+    "HomeU <dev@homeu.co>"
+  ],
+  "description": "WASM module for resident-facing scoring calculations",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "homeu_resident_scores_bg.wasm",
+    "homeu_resident_scores.js",
+    "homeu_resident_scores_bg.js",
+    "homeu_resident_scores.d.ts"
+  ],
+  "main": "homeu_resident_scores.js",
+  "types": "homeu_resident_scores.d.ts",
+  "sideEffects": [
+    "./homeu_resident_scores.js",
+    "./snippets/*"
+  ]
+}
