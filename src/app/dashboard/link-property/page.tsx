@@ -12,6 +12,18 @@ import { api } from "@convex/_generated/api";
 // Force dynamic rendering to prevent SSR issues with Convex
 export const dynamic = 'force-dynamic';
 
+interface MultifamilyProperty {
+  _id: string;
+  propertyId: string;
+  propertyName: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  totalUnits: number;
+  yearBuilt: number;
+}
+
 export default function LinkPropertyPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
@@ -56,7 +68,7 @@ export default function LinkPropertyPage() {
       </div>
 
       <div className="space-y-4">
-        {properties?.map((property) => (
+        {properties?.map((property: MultifamilyProperty) => (
           <Card
             key={property._id}
             className={`cursor-pointer transition-colors ${

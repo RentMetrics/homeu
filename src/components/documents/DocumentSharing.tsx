@@ -31,6 +31,16 @@ interface DocumentSharingProps {
   onDocumentShared?: (ipfsHash: string) => void;
 }
 
+interface IPFSDocument {
+  _id: string;
+  fileName: string;
+  documentType: string;
+  ipfsHash: string;
+  isShared: boolean;
+  fileSize?: number;
+  uploadedAt: string | number;
+}
+
 export function DocumentSharing({ onDocumentShared }: DocumentSharingProps) {
   const { user } = useUserSync();
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -275,7 +285,7 @@ export function DocumentSharing({ onDocumentShared }: DocumentSharingProps) {
             </p>
           ) : (
             <div className="space-y-4">
-              {userDocuments.map((doc) => {
+              {userDocuments.map((doc: IPFSDocument) => {
                 const IconComponent = getDocumentIcon(doc.documentType);
                 return (
                   <div

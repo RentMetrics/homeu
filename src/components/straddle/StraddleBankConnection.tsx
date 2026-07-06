@@ -208,7 +208,7 @@ export function StraddleBankConnection({
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-6 w-6 text-blue-600" />
             <span>Bank Account Connection</span>
-            <VerificationBadge isVerified={user.publicMetadata.verified} size="sm" />
+            <VerificationBadge isVerified={Boolean(user.publicMetadata.verified)} size="sm" />
           </CardTitle>
           <CardDescription>
             Connect your bank account to enable secure rent payments through Straddle

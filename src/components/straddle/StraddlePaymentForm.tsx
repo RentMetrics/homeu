@@ -46,7 +46,8 @@ const paymentSchema = z.object({
   }),
 });
 
-type PaymentFormValues = z.infer<typeof paymentSchema>;
+type PaymentFormInput = z.input<typeof paymentSchema>;
+type PaymentFormValues = z.output<typeof paymentSchema>;
 
 interface BankAccount {
   id: string;
@@ -86,7 +87,7 @@ export function StraddlePaymentForm({
   const [properties, setProperties] = useState<Property[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed' | null>(null);
 
-  const form = useForm<PaymentFormValues>({
+  const form = useForm<PaymentFormInput, unknown, PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       amount: defaultAmount || 0,
@@ -254,7 +255,7 @@ export function StraddlePaymentForm({
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-green-600" />
             <span>Rent Payment</span>
-            <VerificationBadge isVerified={user.publicMetadata.verified} size="sm" />
+            <VerificationBadge isVerified={Boolean(user.publicMetadata.verified)} size="sm" />
           </CardTitle>
           <CardDescription>
             Make secure rent payments through your connected bank account
@@ -283,7 +284,7 @@ export function StraddlePaymentForm({
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-green-600" />
             <span>Rent Payment</span>
-            <VerificationBadge isVerified={user.publicMetadata.verified} size="sm" />
+            <VerificationBadge isVerified={Boolean(user.publicMetadata.verified)} size="sm" />
           </CardTitle>
           <CardDescription>
             Make secure rent payments through your connected bank account using Straddle

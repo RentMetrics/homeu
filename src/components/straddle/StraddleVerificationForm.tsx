@@ -182,7 +182,7 @@ export function StraddleVerificationForm({
               <Home className="h-6 w-6 text-blue-600" />
               <span>Resident Verification</span>
             </div>
-            {user.publicMetadata.verified && (
+            {Boolean(user.publicMetadata.verified) && (
               <VerificationBadge isVerified={true} size="sm" />
             )}
           </CardTitle>

@@ -31,7 +31,10 @@ const authRateLimit = rateLimit({
 })
 
 export default clerkMiddleware(
-  (auth, req) => {
+  async (auth, req) => {
+    // Skip Clerk handling entirely for ignored routes (webhooks, health checks)
+    if (isIgnoredRoute(req)) return NextResponse.next()
+
     // Apply rate limiting
     if (req.nextUrl.pathname.startsWith('/api/')) {
       const rateLimitResponse = apiRateLimit(req)
@@ -83,7 +86,7 @@ export default clerkMiddleware(
     // Restrict admin routes to users with specific permissions
     if (req.nextUrl.pathname.startsWith('/admin')) {
       try {
-        auth().protect()
+        await auth.protect()
         logSecurityEvent('ADMIN_ACCESS', { path: req.nextUrl.pathname }, req)
       } catch (error) {
         logSecurityEvent('UNAUTHORIZED_ADMIN_ACCESS', { path: req.nextUrl.pathname }, req)
@@ -94,7 +97,7 @@ export default clerkMiddleware(
     // Restrict dashboard routes to signed in users
     if (req.nextUrl.pathname.startsWith('/dashboard')) {
       try {
-        auth().protect()
+        await auth.protect()
       } catch (error) {
         logSecurityEvent('UNAUTHORIZED_DASHBOARD_ACCESS', { path: req.nextUrl.pathname }, req)
         throw error
@@ -106,15 +109,12 @@ export default clerkMiddleware(
     
     // Protect all other routes
     try {
-      auth().protect()
+      await auth.protect()
       return response
     } catch (error) {
       logSecurityEvent('UNAUTHORIZED_ACCESS', { path: req.nextUrl.pathname }, req)
       throw error
     }
-  },
-  { 
-    ignoredRoutes: isIgnoredRoute 
   }
 )
 

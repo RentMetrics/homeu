@@ -13,7 +13,9 @@ const nextConfig: NextConfig = {
     ],
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Full typecheck enforced — the codebase is at zero errors as of 2026-07-06.
+    // If a build fails here, fix the type error; do not flip this back to true.
+    ignoreBuildErrors: false,
   },
   serverExternalPackages: ['@workos-inc/node'],
   // Enhanced security headers

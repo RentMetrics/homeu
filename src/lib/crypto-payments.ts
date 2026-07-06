@@ -108,7 +108,7 @@ export class CryptoPaymentService {
         isValid: receipt.status === 1,
         amount: tx.value.toString(),
         from: tx.from,
-        to: tx.to,
+        to: tx.to ?? undefined,
         blockNumber: receipt.blockNumber,
         gasUsed: receipt.gasUsed.toString(),
         status: receipt.status === 1 ? 'confirmed' : 'failed'

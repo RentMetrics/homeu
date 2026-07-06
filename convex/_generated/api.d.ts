@@ -21,6 +21,7 @@ import type * as leases from "../leases.js";
 import type * as marketStats from "../marketStats.js";
 import type * as monthly_data from "../monthly_data.js";
 import type * as multifamilyproperties from "../multifamilyproperties.js";
+import type * as pms from "../pms.js";
 import type * as points from "../points.js";
 import type * as properties from "../properties.js";
 import type * as propertyImages from "../propertyImages.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   marketStats: typeof marketStats;
   monthly_data: typeof monthly_data;
   multifamilyproperties: typeof multifamilyproperties;
+  pms: typeof pms;
   points: typeof points;
   properties: typeof properties;
   propertyImages: typeof propertyImages;

@@ -104,7 +104,7 @@ export function ManagementCompanyForm({ onManagementCompanyConnected, selectedPr
             ...user.publicMetadata,
             managementCompany: formData,
           }
-        });
+        } as Parameters<typeof user.update>[0]);
       }
 
       toast.success('Management company connected successfully!');

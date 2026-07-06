@@ -10,7 +10,7 @@ export interface RateLimitConfig {
 
 export function rateLimit(config: RateLimitConfig) {
   return (req: NextRequest): NextResponse | null => {
-    const ip = req.ip || req.headers.get('x-forwarded-for') || 'unknown';
+    const ip = (req as NextRequest & { ip?: string }).ip || req.headers.get('x-forwarded-for') || 'unknown';
     const now = Date.now();
     const windowStart = now - config.windowMs;
     
@@ -95,7 +95,7 @@ export function logSecurityEvent(event: string, details: any, req?: NextRequest)
     timestamp: new Date().toISOString(),
     event,
     details,
-    ip: req?.ip || req?.headers.get('x-forwarded-for'),
+    ip: (req as (NextRequest & { ip?: string }) | undefined)?.ip || req?.headers.get('x-forwarded-for'),
     userAgent: req?.headers.get('user-agent'),
   };
   

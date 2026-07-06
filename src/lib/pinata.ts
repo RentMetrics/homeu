@@ -6,6 +6,27 @@ const pinata = new PinataSDK({
   pinataGateway: "example-gateway.mypinata.cloud" // Replace with your gateway
 });
 
+// The current pinata SDK typings no longer describe the legacy call shapes
+// used below; type just the methods/fields this service relies on.
+interface LegacyUploadBuilder {
+  addMetadata(metadata: { name?: string; keyValues?: Record<string, string> }): Promise<{ IpfsHash: string }>;
+}
+
+interface LegacyUploadAPI {
+  file(file: File): LegacyUploadBuilder;
+  json(data: any): LegacyUploadBuilder;
+}
+
+interface LegacyGatewaysAPI {
+  get(ipfsHash: string): Promise<any>;
+}
+
+interface LegacyFilesAPI {
+  list(): { metadata(filter: Record<string, string>): Promise<{ files?: any[] }> };
+  delete(hashes: string[]): Promise<any>;
+  update(options: { id: string; name?: string; keyValues?: Record<string, string> }): Promise<any>;
+}
+
 export interface DocumentMetadata {
   fileName: string;
   fileType: string;
@@ -21,7 +42,7 @@ export class PinataService {
    */
   static async uploadFile(file: File, metadata: DocumentMetadata): Promise<string> {
     try {
-      const upload = await pinata.upload.file(file).addMetadata({
+      const upload = await (pinata.upload as unknown as LegacyUploadAPI).file(file).addMetadata({
         name: metadata.fileName,
         keyValues: {
           userId: metadata.userId,
@@ -44,7 +65,7 @@ export class PinataService {
    */
   static async uploadJSON(data: any, name: string): Promise<string> {
     try {
-      const upload = await pinata.upload.json(data).addMetadata({
+      const upload = await (pinata.upload as unknown as LegacyUploadAPI).json(data).addMetadata({
         name: name
       });
 
@@ -60,7 +81,7 @@ export class PinataService {
    */
   static async getFile(ipfsHash: string): Promise<any> {
     try {
-      const data = await pinata.gateways.get(ipfsHash);
+      const data = await (pinata.gateways as unknown as LegacyGatewaysAPI).get(ipfsHash);
       return data;
     } catch (error) {
       console.error('Pinata get file error:', error);
@@ -73,7 +94,7 @@ export class PinataService {
    */
   static async getUserFiles(userId: string): Promise<any[]> {
     try {
-      const files = await pinata.files.list().metadata({
+      const files = await (pinata.files as unknown as LegacyFilesAPI).list().metadata({
         userId: userId
       });
 
@@ -103,7 +124,7 @@ export class PinataService {
    */
   static async deleteFile(ipfsHash: string): Promise<void> {
     try {
-      await pinata.files.delete([ipfsHash]);
+      await (pinata.files as unknown as LegacyFilesAPI).delete([ipfsHash]);
     } catch (error) {
       console.error('Pinata delete file error:', error);
       throw new Error('Failed to delete file');
@@ -115,7 +136,7 @@ export class PinataService {
    */
   static async updateFileMetadata(ipfsHash: string, metadata: Partial<DocumentMetadata>): Promise<void> {
     try {
-      await pinata.files.update({
+      await (pinata.files as unknown as LegacyFilesAPI).update({
         id: ipfsHash,
         name: metadata.fileName,
         keyValues: {

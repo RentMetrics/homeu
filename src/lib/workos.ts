@@ -2,6 +2,24 @@ import { WorkOS } from '@workos-inc/node';
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY!);
 
+// The current @workos-inc/node typings no longer describe some of the legacy
+// call shapes used below; type just the fields/methods this service relies on.
+interface LegacyInvitationOptions {
+  email: string;
+  organizationId: string;
+  inviterUserId: string;
+  roleSlug: string;
+}
+
+interface LegacyUserManagement {
+  createInvitation(options: LegacyInvitationOptions): Promise<{ acceptUrl?: string }>;
+}
+
+type LegacyWorkOSUser = Awaited<ReturnType<typeof workos.userManagement.getUser>> & {
+  organizationId?: string;
+  role?: string;
+};
+
 export interface PropertyManager {
   id: string;
   email: string;
@@ -54,7 +72,7 @@ export class WorkOSService {
       });
 
       // Create admin user invitation
-      const invitation = await workos.userManagement.createInvitation({
+      const invitation = await (workos.userManagement as unknown as LegacyUserManagement).createInvitation({
         email: adminEmail,
         organizationId: organization.id,
         inviterUserId: 'system', // System-generated invitation
@@ -79,7 +97,7 @@ export class WorkOSService {
     organizationId: string
   ): Promise<string> {
     try {
-      const workosInvitation = await workos.userManagement.createInvitation({
+      const workosInvitation = await (workos.userManagement as unknown as LegacyUserManagement).createInvitation({
         email: invitation.email,
         organizationId: organizationId,
         inviterUserId: invitation.invitedBy,
@@ -102,10 +120,10 @@ export class WorkOSService {
     accessToken: string;
   }> {
     try {
-      const { user, organization, accessToken } = await workos.userManagement.authenticateWithCode({
+      const { user, organization, accessToken } = (await workos.userManagement.authenticateWithCode({
         code,
         clientId: process.env.WORKOS_CLIENT_ID!,
-      });
+      })) as unknown as { user: any; organization: any; accessToken: string };
 
       return { user, organization, accessToken };
     } catch (error) {
@@ -119,7 +137,7 @@ export class WorkOSService {
    */
   static async getPropertyManager(userId: string): Promise<PropertyManager | null> {
     try {
-      const user = await workos.userManagement.getUser(userId);
+      const user = (await workos.userManagement.getUser(userId)) as LegacyWorkOSUser;
 
       if (!user) return null;
 
@@ -166,7 +184,7 @@ export class WorkOSService {
         limit: 100
       });
 
-      return response.data.map(user => ({
+      return response.data.map((user: LegacyWorkOSUser) => ({
         id: user.id,
         email: user.email,
         firstName: user.firstName || '',
@@ -196,7 +214,7 @@ export class WorkOSService {
       await workos.userManagement.updateUser({
         userId: userId,
         role: role
-      });
+      } as Parameters<typeof workos.userManagement.updateUser>[0] & { role: string });
     } catch (error) {
       console.error('WorkOS update role error:', error);
       throw new Error('Failed to update property manager role');
@@ -241,7 +259,9 @@ export class WorkOSService {
    */
   static validateWebhook(payload: string, signature: string): boolean {
     try {
-      return workos.webhooks.verifyEvent({
+      return (workos.webhooks as unknown as {
+        verifyEvent(options: { payload: string; sigHeader: string; secret: string }): boolean;
+      }).verifyEvent({
         payload,
         sigHeader: signature,
         secret: process.env.WORKOS_WEBHOOK_SECRET!
