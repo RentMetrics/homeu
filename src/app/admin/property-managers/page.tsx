@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import type { Doc } from '../../../../convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,26 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+// Shape returned by api.propertyManagers.getAllPropertyManagers (enriched PM docs)
+type EnrichedPropertyManager = Doc<'propertyManagers'> & {
+  propertyDetails: Array<{
+    propertyId: string;
+    propertyName: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    totalUnits: number;
+    isConnectedToHomeU: boolean;
+    activeResidents: number;
+    totalMonthlyRent: number;
+  }>;
+  organization: { companyName: string; adminEmail: string } | null;
+  totalPropertyCount: number;
+  connectedPropertyCount: number;
+  activeRenterCount: number;
+};
+
 export default function PropertyManagersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedPM, setExpandedPM] = useState<string | null>(null);
@@ -48,7 +69,7 @@ export default function PropertyManagersPage() {
 
   const [isGeneratingToken, setIsGeneratingToken] = useState<string | null>(null);
 
-  const propertyManagers = useQuery(api.propertyManagers.getAllPropertyManagers, { limit: 100 });
+  const propertyManagers: EnrichedPropertyManager[] | undefined = useQuery(api.propertyManagers.getAllPropertyManagers, { limit: 100 });
   const searchResults = useQuery(
     api.multifamilyproperties.searchProperties,
     propertyInput.length >= 2 ? { searchQuery: propertyInput, limit: 20 } : "skip"
@@ -284,7 +305,7 @@ export default function PropertyManagersPage() {
                       </div>
                     )}
                   </div>
-                  <Button type="button" onClick={handleAddProperty} variant="outline">
+                  <Button type="button" onClick={() => handleAddProperty()} variant="outline">
                     Add
                   </Button>
                 </div>

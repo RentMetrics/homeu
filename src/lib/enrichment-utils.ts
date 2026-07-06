@@ -71,7 +71,10 @@ export async function enrichAllPropertiesSimple(
   convexClient: ConvexHttpClient
 ) {
   try {
-    const results = await convexClient.mutation(api.enrich_properties.enrichAllProperties);
+    const response = await convexClient.mutation(
+      api.enrich_properties.enrichAllProperties
+    );
+    const results = response.results as Array<{ success: boolean }>;
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
 
@@ -79,7 +82,7 @@ export async function enrichAllPropertiesSimple(
       success: true,
       message: `Enrichment complete: ${successCount} successful, ${errorCount} failed`,
       stats: {
-        total: results.length,
+        total: response.total,
         successful: successCount,
         failed: errorCount
       }

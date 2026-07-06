@@ -559,6 +559,16 @@ export const updatePropertyWithGoogleData = mutation({
     propertyId: v.string(),
     googleRating: v.optional(v.number()),
     googleImageUrl: v.optional(v.string()),
+    googlePlaceId: v.optional(v.string()),
+    googleUserRatingsTotal: v.optional(v.number()),
+    googleFormattedAddress: v.optional(v.string()),
+    googlePhotos: v.optional(v.array(v.object({
+      photoReference: v.string(),
+      width: v.number(),
+      height: v.number(),
+    }))),
+    googleAttributionRequired: v.optional(v.boolean()),
+    googleLastVerified: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const property = await ctx.db
@@ -570,10 +580,8 @@ export const updatePropertyWithGoogleData = mutation({
       throw new Error(`Property with ID ${args.propertyId} not found`);
     }
 
-    await ctx.db.patch(property._id, {
-      googleRating: args.googleRating,
-      googleImageUrl: args.googleImageUrl,
-    });
+    const { propertyId: _propertyId, ...googleFields } = args;
+    await ctx.db.patch(property._id, googleFields);
 
     return { success: true };
   },

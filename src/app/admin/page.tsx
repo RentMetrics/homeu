@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useMutation, useQuery, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import type { Doc } from '../../../convex/_generated/dataModel';
 import { toast } from 'sonner';
 
 // Force dynamic rendering to prevent SSR issues with Convex
@@ -24,14 +25,14 @@ export default function AdminPortal() {
   const enrichPropertiesByLocation = useAction(api.google_places.enrichPropertiesByLocation);
   const testGooglePlacesSearch = useAction(api.google_places.testGooglePlacesSearch);
   const testGooglePlacesAPI = useAction(api.google_places.testGooglePlacesAPI);
-  const allProperties = useQuery(api.multifamilyproperties.getAllProperties, { limit: 100 });
+  const allProperties: Doc<'multifamilyproperties'>[] | undefined = useQuery(api.multifamilyproperties.getAllProperties, { limit: 100 });
   const propertiesCount = useQuery(api.multifamilyproperties.getPropertiesCount);
   const propertiesNeedingEnrichment = useQuery(api.google_places.getPropertiesNeedingEnrichment, { city: "Dallas", state: "TX", limit: 50 });
 
   // New admin queries for customers and property managers
-  const allUsers = useQuery(api.users.getAllUsers, { limit: 100 });
-  const verifiedUsers = useQuery(api.users.getVerifiedUsers, { limit: 50 });
-  const recentSignups = useQuery(api.users.getRecentSignups, { limit: 20 });
+  const allUsers: Doc<'renters'>[] | undefined = useQuery(api.users.getAllUsers, { limit: 100 });
+  const verifiedUsers: Doc<'renters'>[] | undefined = useQuery(api.users.getVerifiedUsers, { limit: 50 });
+  const recentSignups: Doc<'renters'>[] | undefined = useQuery(api.users.getRecentSignups, { limit: 20 });
 
   const handleEnrichAll = async () => {
     setIsEnriching(true);

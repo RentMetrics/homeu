@@ -448,3 +448,10 @@ export const updateVerificationStatus = mutation({
     return renter._id;
   },
 }); 
+// Get all renters (admin customers page)
+export const getAllRenters = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("renters").collect();
+  },
+});

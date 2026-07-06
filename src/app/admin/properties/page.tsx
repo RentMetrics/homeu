@@ -589,7 +589,7 @@ function PMContactSection({ property }: { property: Property }) {
     setSaving(true);
     try {
       await updatePMContact({
-        propertyDocId: property._id,
+        propertyId: property._id,
         ...form,
       });
       toast.success("PM contact information saved");

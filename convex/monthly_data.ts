@@ -176,3 +176,75 @@ export const getAllPropertyIds = query({
     return properties.map(p => p.propertyId);
   },
 }); 
+// Market data summary for the admin data-management page
+export const getMarketDataSummary = query({
+  args: {
+    propertyId: v.optional(v.string()),
+    startMonth: v.optional(v.string()),
+    endMonth: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const inRange = (month: string) =>
+      (!args.startMonth || month >= args.startMonth) &&
+      (!args.endMonth || month <= args.endMonth);
+
+    const propertyId = args.propertyId;
+
+    const rentData = (propertyId
+      ? await ctx.db
+          .query("rentData")
+          .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+          .collect()
+      : await ctx.db.query("rentData").collect()
+    ).filter((r) => inRange(r.month));
+
+    const occupancyData = (propertyId
+      ? await ctx.db
+          .query("occupancyData")
+          .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+          .collect()
+      : await ctx.db.query("occupancyData").collect()
+    ).filter((r) => inRange(r.month));
+
+    const concessionData = (propertyId
+      ? await ctx.db
+          .query("concessionData")
+          .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+          .collect()
+      : await ctx.db.query("concessionData").collect()
+    ).filter((r) => inRange(r.month));
+
+    const propertyIds = new Set([
+      ...rentData.map((r) => r.propertyId),
+      ...occupancyData.map((r) => r.propertyId),
+      ...concessionData.map((r) => r.propertyId),
+    ]);
+    const months = [...new Set([
+      ...rentData.map((r) => r.month),
+      ...occupancyData.map((r) => r.month),
+      ...concessionData.map((r) => r.month),
+    ])].sort();
+
+    const avg = (values: number[]) =>
+      values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+
+    return {
+      propertyCount: propertyIds.size,
+      monthsAvailable: months,
+      rentSummary: {
+        averageRent: avg(rentData.map((r) => r.averageRent)),
+        totalRecords: rentData.length,
+      },
+      occupancySummary: {
+        averageOccupancy: avg(occupancyData.map((r) => r.occupancyRate)),
+        totalRecords: occupancyData.length,
+      },
+      concessionSummary: {
+        totalRecords: concessionData.length,
+      },
+      rentData,
+      occupancyData,
+      concessionData,
+    };
+  },
+});
