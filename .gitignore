@@ -42,3 +42,12 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Secrets & local-only assets
+certs/
+
+# Large local datasets (2.7GB market data dumps)
+data/market-data/
+
+# Rust build artifacts
+rust-wasm/target/
