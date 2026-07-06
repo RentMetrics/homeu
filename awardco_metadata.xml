@@ -1,0 +1,25 @@
+<md:EntityDescriptor entityID="https://homeu.awardco.com/sso/saml" xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata">
+  <md:SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIFSjCCAzICCQD6YEPJodFwlzANBgkqhkiG9w0BAQsFADBnMR0wGwYDVQQDDBRzc28uc2FtbC5hd2FyZGNvLmNvbTELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAlVUMQ0wCwYDVQQHDARPcmVtMRAwDgYDVQQKDAdBd2FyZGNvMQswCQYDVQQLDAJJVDAeFw0xOTAyMTYwNTMzMjZaFw0yOTAyMTMwNTMzMjZaMGcxHTAbBgNVBAMMFHNzby5zYW1sLmF3YXJkY28uY29tMQswCQYDVQQGEwJVUzELMAkGA1UECAwCVVQxDTALBgNVBAcMBE9yZW0xEDAOBgNVBAoMB0F3YXJkY28xCzAJBgNVBAsMAklUMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAt8ZKkSy7HFznzqvqxF3OJPoa1FBRfuOtY906WL3ZDQQrkZpLydfKz9M0LwOv5XzUGTJhgPe7k9Ac6HNPhkUXOa16L7AAta2YjKecPtWcIcDJ7EFMgkg5cyfMa/ZyjOwaIgJvcB/xYSzojQwzpDGF0jDZ1D3EapBuD8w6lcN3G7AIbaLNqcYTQUaE8REdaqC81tUIH/gSQ9NY0ahR3Rbye3JxJpoiD0cnnzkVKj7JnzeeGColUJdkiGb7NBBqUPV/EE4fZqTg+CxF34SAdh7zH3YzBd1Hz+tn7Ga+vGuWxBwPcrcwmzwrBqNNdyeU9ozUNMXTZy8YvN6kZhatkYQ2XaDE8Zz4ugsWL2I+5u8iK5RqrRJkjjpszMBDh4KwoXeAMDhUxqZrQzJpPvbW8XaN3PzEWhrkHO5wAxxawpdFfdWFv278E0nOFCZoxoa1/hzwNMXDmHDt9By3x/pcRv/q+pUNrMMHQ+xQHPg8bvne0d6dnscFc5N6S+UHIe8IPh+BaLiH9zbXZac6f0zZlTJLC+s+1UUsi8nzE8Pk4dkRitwPlXiljPWNb+u9Cf327ontHq1ZhcfzK7DaJPkvzC8ZdbmpPJ7Wnr1+TFtZYct3Vq0CRuGQQtd10Aqoj5lOQk+YJqPYzLEGaN1Bb+JmCe1P7BQwKlFnjhOSSoc8/E1BvyMCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEAKZJ5/IJDsIFTeeWCPOpvoLf2u/82QFy4jLIBvjO5JGQ7F6Pf3xNBflumCR5uyvX7A6244Q6m+zn9totORflEC8+BtqGgWkEfEZF1IdsSgbv18LTsDzlbosFruCuHaS2OxEElCQIQiRW6u8EmEX6q6aOgYSfsJx7dX7tlcVwjsFauFAZaDBaKHcfmjL0mgHLnFseY6m5QrBYbq3Fx6eQUscmQJV+xl1sb+YcPYnrHN6+aKv6z3AG1PXBHWVJNIBo5uQJx0S6HZ5FoygklybXr078Dg4V9ZAFyx12j+l8pk7/5fPJ2dH3CJGwHvqHq6ThAPg4bc/ezBskxJ6NpxFFsmaB9gX/CZNFcz+jzO+CyUVYMseL9gYf5OVb7UyBW3NKG23ozfhYcoITPgORJSjFJ0glvpcBkYK6gLsft7HG6puf5Qt4nT+gMAtpIfQYpUkOCl3FAml3VDcqIbWs6a2y1u8uNLbX+CfrtXcCQHC/5U6LWM9CalSD7gwhVkQ4Fa6/MBDkNgYBh3TjE028R+b5BttlJKpOegZtyzpzdpb97NlelCLgMNlQEIhfhG5MXUvKck3etxO3Gu7XIwhi0hyVbHrtjb73QT/Cq2H/cyxYDdxAvr4rAhrlAUKp77VVAIN3ogkPdqvfw+a7foL5itPZ7UoTOLxL/ly0AwiG+qhi+VWU=</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:KeyDescriptor use="encryption">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIFSjCCAzICCQD6YEPJodFwlzANBgkqhkiG9w0BAQsFADBnMR0wGwYDVQQDDBRzc28uc2FtbC5hd2FyZGNvLmNvbTELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAlVUMQ0wCwYDVQQHDARPcmVtMRAwDgYDVQQKDAdBd2FyZGNvMQswCQYDVQQLDAJJVDAeFw0xOTAyMTYwNTMzMjZaFw0yOTAyMTMwNTMzMjZaMGcxHTAbBgNVBAMMFHNzby5zYW1sLmF3YXJkY28uY29tMQswCQYDVQQGEwJVUzELMAkGA1UECAwCVVQxDTALBgNVBAcMBE9yZW0xEDAOBgNVBAoMB0F3YXJkY28xCzAJBgNVBAsMAklUMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAt8ZKkSy7HFznzqvqxF3OJPoa1FBRfuOtY906WL3ZDQQrkZpLydfKz9M0LwOv5XzUGTJhgPe7k9Ac6HNPhkUXOa16L7AAta2YjKecPtWcIcDJ7EFMgkg5cyfMa/ZyjOwaIgJvcB/xYSzojQwzpDGF0jDZ1D3EapBuD8w6lcN3G7AIbaLNqcYTQUaE8REdaqC81tUIH/gSQ9NY0ahR3Rbye3JxJpoiD0cnnzkVKj7JnzeeGColUJdkiGb7NBBqUPV/EE4fZqTg+CxF34SAdh7zH3YzBd1Hz+tn7Ga+vGuWxBwPcrcwmzwrBqNNdyeU9ozUNMXTZy8YvN6kZhatkYQ2XaDE8Zz4ugsWL2I+5u8iK5RqrRJkjjpszMBDh4KwoXeAMDhUxqZrQzJpPvbW8XaN3PzEWhrkHO5wAxxawpdFfdWFv278E0nOFCZoxoa1/hzwNMXDmHDt9By3x/pcRv/q+pUNrMMHQ+xQHPg8bvne0d6dnscFc5N6S+UHIe8IPh+BaLiH9zbXZac6f0zZlTJLC+s+1UUsi8nzE8Pk4dkRitwPlXiljPWNb+u9Cf327ontHq1ZhcfzK7DaJPkvzC8ZdbmpPJ7Wnr1+TFtZYct3Vq0CRuGQQtd10Aqoj5lOQk+YJqPYzLEGaN1Bb+JmCe1P7BQwKlFnjhOSSoc8/E1BvyMCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEAKZJ5/IJDsIFTeeWCPOpvoLf2u/82QFy4jLIBvjO5JGQ7F6Pf3xNBflumCR5uyvX7A6244Q6m+zn9totORflEC8+BtqGgWkEfEZF1IdsSgbv18LTsDzlbosFruCuHaS2OxEElCQIQiRW6u8EmEX6q6aOgYSfsJx7dX7tlcVwjsFauFAZaDBaKHcfmjL0mgHLnFseY6m5QrBYbq3Fx6eQUscmQJV+xl1sb+YcPYnrHN6+aKv6z3AG1PXBHWVJNIBo5uQJx0S6HZ5FoygklybXr078Dg4V9ZAFyx12j+l8pk7/5fPJ2dH3CJGwHvqHq6ThAPg4bc/ezBskxJ6NpxFFsmaB9gX/CZNFcz+jzO+CyUVYMseL9gYf5OVb7UyBW3NKG23ozfhYcoITPgORJSjFJ0glvpcBkYK6gLsft7HG6puf5Qt4nT+gMAtpIfQYpUkOCl3FAml3VDcqIbWs6a2y1u8uNLbX+CfrtXcCQHC/5U6LWM9CalSD7gwhVkQ4Fa6/MBDkNgYBh3TjE028R+b5BttlJKpOegZtyzpzdpb97NlelCLgMNlQEIhfhG5MXUvKck3etxO3Gu7XIwhi0hyVbHrtjb73QT/Cq2H/cyxYDdxAvr4rAhrlAUKp77VVAIN3ogkPdqvfw+a7foL5itPZ7UoTOLxL/ly0AwiG+qhi+VWU=</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>
+    <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://homeu.awardco.com/sso/saml" index="1"/>
+  </md:SPSSODescriptor>
+  <md:Organization>
+    <md:OrganizationName xml:lang="en">Awardco</md:OrganizationName>
+    <md:OrganizationDisplayName xml:lang="en">Awardco</md:OrganizationDisplayName>
+    <md:OrganizationURL xml:lang="en">https://www.award.co</md:OrganizationURL>
+  </md:Organization>
+</md:EntityDescriptor>

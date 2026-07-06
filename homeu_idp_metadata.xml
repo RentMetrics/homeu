@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<md:EntityDescriptor entityID="https://homeu.co/saml/metadata"
+  xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata">
+  <md:IDPSSODescriptor
+    WantAuthnRequestsSigned="false"
+    protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDfTCCAmWgAwIBAgIUVyjyk2QD3HATGsdrWbz1q2dhufkwDQYJKoZIhvcNAQELBQAwTjERMA8GA1UEAwwIaG9tZXUuY28xDjAMBgNVBAoMBUhvbWVVMQswCQYDVQQGEwJVUzELMAkGA1UECAwCVFgxDzANBgNVBAcMBkF1c3RpbjAeFw0yNjAyMjAyMTU4MDNaFw0zNjAyMTgyMTU4MDNaME4xETAPBgNVBAMMCGhvbWV1LmNvMQ4wDAYDVQQKDAVIb21lVTELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAlRYMQ8wDQYDVQQHDAZBdXN0aW4wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCZmid/4WqcP5g13yuAiAkFVKx26hudMnbC2kXUFGvWZ5qBL0vkHAXTXOiDmBzLs9nWI49X+tZqagVjdKpY5qv3VIAB8NN+hQF/yvfNo6i29rGw/gNEP+v+yGuIEKU3SQDJanKW0SHqByGN4jvFIOn5zbG+Dui9ENOGT1K9njZTb/1r6H8i5+ryHv8fsH21/zfMNr5/uTaewZpesT+Jgdh9psTWO0vc7BlabRqA0+iTCh1FOVYiZsCA+V4nmV5uss9T5d3CHkdm6CYON/QX/X36DeKrkAa9HyLDtZcjQCCV2owk7PJ6ZVHht2zKakNXE+Wdw4Pt5XzsHZwcM4M1ykzdAgMBAAGjUzBRMB0GA1UdDgQWBBQgw7Pb9iT39bnbnJi4CzbVqa8MnjAfBgNVHSMEGDAWgBQgw7Pb9iT39bnbnJi4CzbVqa8MnjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQAu+MNXmz6rFMbJ1V/mQlWJazbp6F/CglzuCHqgEHwva3J59GkvjpOm14C/7HKkL58NrxC9YJreqOYKQDCXLSsSEmUhDnzhT/wj8DU0/OmzhSI0RMunfOxoynNIVFTvwWSfdTVCAom9k1wJN8r1UbBGrUyD6kdmnd/xkGp86SM/49jS08nEGuBtEm0pvVVwn5LA778LpMxk8koWvWuvXz+0/nXBfia4c0WRvLfo9kkWAY3fTjDc2I6KEDim72a8GofTdddPKLz3gZcKVblnbbY9IROwuLIP12ObuPlL3MC5u4BsC0J1YjfWkSVk1UpB/yqH7dR5EtkD9LAbGJ9ISo9z</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+    <md:SingleSignOnService
+      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+      Location="https://homeu.co/api/awardco/sso"/>
+    <md:SingleSignOnService
+      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+      Location="https://homeu.co/api/awardco/sso"/>
+  </md:IDPSSODescriptor>
+  <md:Organization>
+    <md:OrganizationName xml:lang="en">HomeU</md:OrganizationName>
+    <md:OrganizationDisplayName xml:lang="en">HomeU - Resident Rewards Platform</md:OrganizationDisplayName>
+    <md:OrganizationURL xml:lang="en">https://homeu.co</md:OrganizationURL>
+  </md:Organization>
+  <md:ContactPerson contactType="technical">
+    <md:GivenName>Curtis</md:GivenName>
+    <md:SurName>Holder</md:SurName>
+    <md:EmailAddress>curtis@homeu.co</md:EmailAddress>
+  </md:ContactPerson>
+</md:EntityDescriptor>

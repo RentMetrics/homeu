@@ -1,0 +1,3370 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Awardco API",
+    "version": "1.0.0",
+    "license": {
+      "name": "Proprietary",
+      "url": "https://www.award.co/legal"
+    },
+    "description": "## Overview\n\nAwardco uses REST based web services to allow developers to interact with the Awardco platform. In order to use the Awardco API, an API key is needed and must be passed on each call. We require passing the API key as a request header. A key will be provided to approved developers upon request. All API calls must be made using the HTTPS protocol. All responses are in JSON format and include a success field indicating whether the call was successful or not. The categories in the menu outline the individual API calls available to developers.\n\n<br>\n\n***\n***\n***\n\n## Base URL\n\nThe base url for all API calls is located at https://&#8203;api.awardco.com/api/method.\n\nWhere “method” is the specific service being called.\n\n<br>\n\n***\n***\n***\n\n## Authentication\n\nAll API requests must include a valid API Key provided as a request header.\n\n```\napiKey : 00000000000000000000000000000000\n```\n\nAPI keys are configured with specific permissions that control access to particular endpoints. When creating an API key, you can assign permissions based on the resources and operations you intend to use. For details on how to create an API key and assign permissions, please refer to our [API Key Management Documentation].\n\n[ API Key Management Documentation ]: https://awardco.my.site.com/Customerhelp/s/article/Managing-API-Keys?language=en_US\n\n<br>\n\n***\n***\n***\n\n## Timestamps\n\nAll timestamps are returned in ISO 8601 format.\n\n```\nYYY-MM-DDTHH:MM:SSZ\n```\n<br>\n\n***\n***\n***\n\n## Partnership Integration\n\nIf you are an Awardco partner, please include the X-Partner-Id header in your requests. Doing so will help us more easily troubleshoot for you and identify clients using your integration.\n\n```\napiKey : 00000000000000000000000000000000\nX-Partner-Id : your-partner-id\n```"
+  },
+  "servers": [
+    {
+      "url": "https://api.awardco.com/api"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reports",
+      "description": ""
+    },
+    {
+      "name": "Legacy Reports",
+      "description": "All legacy reports can return a JSON object or a CSV file. The endpoints below will be using the JSON format. To get the CSV format, simply modify the endpoint path with 'csv' instead of 'json'.\nFor example, https://api.awardco.com/api/reports/recognition-details/csv.\n"
+    },
+    {
+      "name": "Recognition",
+      "description": ""
+    },
+    {
+      "name": "Feed",
+      "description": ""
+    },
+    {
+      "name": "MemoryBooks",
+      "description": ""
+    },
+    {
+      "name": "Users",
+      "description": ""
+    },
+    {
+      "name": "Webhooks",
+      "description": "## Webhook Registration\nLooking to setup webhooks? Check out this [support documentation.](https://awardco.my.site.com/Customerhelp/s/article/Creating-Webhooks?language=en_US)\n\n## Webhook Headers\nWebhook endpoints should use HTTPS and expect to receive POST requests with the following headers:\n\n```json\n{\n  \"Content-Type\": \"application/json\",\n  \"Awardco-Signature\": \"v5233fg2fsdfdTFdwqBx4vOntjJdbgdfgR=\",\n  \"Awardco-Timestamp\": \"1708551969\"\n}\n```\n\n***\n\n## Webhook Verification\n**Awardco uses HMAC-SHA256 webhook verification. The following are steps you can use to verify a webhook using the verification header:**\n\n1. **Extract the signature from the header.**\nThe `Awardco-Signature` header was created by hashing the webhook's body with the webhook's secret before sending the request. You can verify the request is from Awardco by generating that same signature with your secret.\n\n2. **Extract the timestamp from the header.**\nThe `Awardco-Timestamp` is when the request was sent. You can verify that the request is not a replay attack by checking if the unix timestamp is within an acceptable time limit. Usually within 300 seconds or five minutes should be sufficient. Most events will also contain a unique id for the event, so you can save that event id and verify that this request does not have the same id as a previous request.\n\n3. **Generate the webhook signature.**\nUsing the webhook secret, hash the webhook's body and the `Awardco-Timestamp` together in the form `{timestamp}.{body}` to generate the same webhook signature as the `Awardco-Signature`. Do not change the body in any way before verifying. The signature is sensitive to any changes. If the signature you generate does not match the `Awardco-Signature` reject the request.\n\n4. **Handle the request and return a 200.**\nIf the signature is valid, handle the event and return a 200 within 3 seconds. If we don't receive a 200 within 3 seconds, we will email the error email recipients.\n\n**Event delivery and ordering**\n\nSome events will be sent out of order potentially.\n\n<br>\n\n***\n\n## Webhook Payload Structure\n\n#### Common fields\nEach webhook event, regardless of type, contains the following fields in the response body:\n* `companyId` (integer): Unique id for a company.\n* `companyName` (string): The company Display Name.\n* `companyUrl` (string): The company's unique base url Example - \"https://[subdomain].awardco.com\".\n"
+    }
+  ],
+  "paths": {
+    "/report-api": {
+      "post": {
+        "summary": "Report Data",
+        "description": "*The primary request from the API that will provide the specified report data in CSV or JSON format.*\n\nFor this API, you must provide the report name you wish to pull data from. Additionally, you can specify filters and data points required.\nThese filters and data points are different depending on the name of the report. Please refer to the [ report-info ] endpoint for instructions on how to discover these programmatically.\n\nIf you are **only** using strings or boolean they may be used in the query params instead of the body.\n\n```\nPOST https://api.awardco.com/api/report-api?reportName=Recognition Details&returnType=json&startDate=1/1/2022&endDate=4/20/2022\n```\n\n[ report-info ]: /api-v2-beta#tag/reports/GET/report-info\n",
+        "operationId": "createReport",
+        "tags": [
+          "Reports"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reportName"
+                ],
+                "properties": {
+                  "reportName": {
+                    "type": "string",
+                    "description": "The name of the matching report you wish to pull data from.\nCurrently supported reports are:\n- Recognition Details\n- Points Redeemed\n- Point Transactions\n- Point Budgets\n- Money Spent\n- Redemption Account\n- Money Deposited\n- Recognition Status\n- Users\n- Login\n- Client Fulfillment\n- Funding Reconciliation\n- Recognition Program Utilization\n- User Point Balance\n- MemoryBook Usage\n- Redemption Point Source (FIFO)\n"
+                  },
+                  "returnType": {
+                    "type": "string",
+                    "default": "csv",
+                    "description": "The return format to provide all results in.\nCurrently supported options are:\n  - csv\n  - json\n"
+                  },
+                  "timeRangeOption": {
+                    "type": "string",
+                    "description": "The time range you wish to pull data for.\nIf specified, it will override values provided by startDate and endDate.\nCurrently supported time ranges are:\n- This Week\n- This Month\n- This Quarter\n- This Year\n- Last Week\n- Last Month\n- Last Quarter\n- Last Year\n- All Time\n- Custom\n- This Period (Default - Only for Recognition Program Utilization Report)\n- Last Period (Only for Recognition Program Utilization Report)\n\n\\* When pulling data for the MemoryBook Usage Report for a timeframe that is inclusive of today, the report will also return the next 35 days of queued MemoryBooks and their associated data.\n"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "default": "Date of first record for this company",
+                    "description": "The date from when records should begin.\nThis is defined in UTC time and ISO-86601 format (YYYY-MM-DDTHH:MM:SSZ).\nThis is not supported for the Recognition Program Utilization Report.\n"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "default": "Current Date/Time in UTC Format",
+                    "description": "The date when records should end.\nThis is defined in UTC time and ISO-86601 format (YYYY-MM-DDTHH:MM:SSZ).\nThis is not supported for the Recognition Program Utilization Report.\n"
+                  },
+                  "includeRecordCount": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When specified a value of 'Record-Count' will be added to the headers of the response.\nThis value will contain the total number of records that were returned by the API.\nThis can be used for data integrity checking.\n\n**Note:** Enabling the includeRecordCount option will increase the execution time of the report. It should not be used unless needed for data checking.\n"
+                  },
+                  "dataFilters": {
+                    "type": "object",
+                    "description": "A JSON Object that determines which filters to apply on the whole dataset in order to return limited scopes of data.\nThese filters are based on standard values as well as metadata values provided in your unique instance of the Awardco Platform.\n\nIf not defined, no filtering will be applied.\n\nAll keys and values are case sensitive.\nAdditionally all values will be matched explicitly - if there is more than one value with the same name in the defined dataset and scope all will be returned.\n\nIt is also possible to provide a JSON null value to match any records with no data for that filter.\n"
+                  },
+                  "contentColumns": {
+                    "type": "array",
+                    "description": "An array of data points/csv columns to return for the matching records.\nThese columns are based on standard values as well as metadata values provided in your unique instance of the Awardco Platform.\n\nIf not defined, all possible columns will be returned.\n\nAll column names are case sensitive.\n\nColumns will always return in the order they are defined. If no columns are defined, there is no guarantee that all columns will remain in the same order in the future  .\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "reportName": "Recognition Details"
+                  }
+                },
+                "Simple": {
+                  "description": "test description",
+                  "value": {
+                    "reportName": "Recognition Details",
+                    "returnType": "json",
+                    "startDate": "1/1/2022",
+                    "endDate": "4/20/2022"
+                  }
+                },
+                "Slightly Complicated": {
+                  "value": {
+                    "reportName": "Recognition Details",
+                    "returnType": "csv",
+                    "timeRangeOption": "Last Year",
+                    "dataFilters": {
+                      "Budget": [
+                        "Test Budget",
+                        null
+                      ]
+                    },
+                    "contentColumns": [
+                      "DATE",
+                      "FROM FULL NAME",
+                      "TO FULL NAME",
+                      "POINTS AWARDED"
+                    ]
+                  }
+                },
+                "Complicated": {
+                  "value": {
+                    "reportName": "Recognition Details",
+                    "returnType": "csv",
+                    "startDate": "1/1/2010",
+                    "endDate": "4/20/2022",
+                    "dataFilters": {
+                      "Budget": [
+                        "Gringotts",
+                        "Test Budget",
+                        null
+                      ]
+                    },
+                    "contentColumns": [
+                      "DATE",
+                      "FROM FULL NAME",
+                      "TO FULL NAME",
+                      "POINTS AWARDED",
+                      "PROGRAM NAME",
+                      "TAGS",
+                      "RECOGNITION NOTE",
+                      "PROGRAM ID",
+                      "VISIBILITY",
+                      "FROM EMPLOYEE ID",
+                      "FROM SUPERVISOR ID",
+                      "FROM EMAIL",
+                      "FROM GROUP",
+                      "FROM STATUS",
+                      "TO EMPLOYEE ID",
+                      "TO SUPERVISOR ID",
+                      "TO EMAIL",
+                      "TO GROUP",
+                      "TO STATUS",
+                      "BASE AMOUNT (ESTIMATED)",
+                      "BASE CURRENCY",
+                      "USER AMOUNT (ESTIMATED)",
+                      "USER CURRENCY",
+                      "USER PPP",
+                      "EXCHANGE RATE",
+                      "RECOGNITION ID",
+                      "COST CENTER ID",
+                      "COST CENTER NAME",
+                      "BUDGET",
+                      "BUDGET ID",
+                      "TAXABLE",
+                      "UTC DATE/TIME",
+                      "From Meta: Department",
+                      "From Meta: Subject",
+                      "From Meta: Meta_Test",
+                      "From Meta: House",
+                      "To Meta: Department",
+                      "To Meta: Subject",
+                      "To Meta: Meta_Test",
+                      "To Meta: House",
+                      "ADDITIONAL QUESTIONS"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report-info": {
+      "get": {
+        "summary": "Report Info",
+        "operationId": "getReportInfo",
+        "tags": [
+          "Reports"
+        ],
+        "description": "Returns all possible values for the specified report's Data Filters and Content columns.\n\n```\nExample:\nGET https://api.awardco.com/api/report-info?reportName=recognition details&includeValues=true\n```\n",
+        "parameters": [
+          {
+            "name": "reportName",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The name of the matching report you wish to discover available data filters from. Currently supported reports are:\n- Recognition Details\n- Points Redeemed\n- Point Transactions\n- Point Budgets\n- Money Spent\n- Redemption Account\n- Money Deposited\n- Recognition Status\n- Users\n- Login\n- Client Fulfillment\n- Funding Reconciliation\n- Recognition Program Utilization\n- User Point Balance\n- MemoryBook Usage\n- Redemption Point Source (FIFO)\n",
+            "example": "recognition details"
+          },
+          {
+            "name": "includesValues",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "If specified as true all possible values will be included alongside their respective data filters.\n",
+            "example": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dataFilters": {
+                      "type": "object",
+                      "properties": {
+                        "Budget": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "Cost_Center": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "Recognition_Program": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "Recognition_Type": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "description": "Available data filters for the report."
+                    },
+                    "contentColumns": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Available content columns for the report."
+                    }
+                  }
+                },
+                "example": {
+                  "dataFilters": {
+                    "Budget": [],
+                    "Cost Center": [],
+                    "Recognition Program": [],
+                    "Recognition Type": []
+                  },
+                  "contentColumns": [
+                    "DATE",
+                    "FROM FULL NAME",
+                    "TO FULL NAME",
+                    "POINTS AWARDED"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Error message."
+                    }
+                  },
+                  "example": {
+                    "error": "Invalid report name provided."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/recognition-details/json": {
+      "get": {
+        "summary": "Recognition Details",
+        "operationId": "getRecognitionDetails",
+        "tags": [
+          "Legacy Reports"
+        ],
+        "description": "Returns the recognition details for the specified date range.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "default": "Date of first record for this company",
+                    "description": "The start date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-01-06:00\n"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "default": "Current Date/Time in UTC Format",
+                    "description": "The end date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-31-06:00\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "startDate": "2013-01-01-06:00",
+                    "endDate": "2013-01-31-06:00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Date": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "The date of the recognition."
+                    },
+                    "Timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "The timestamp of the recognition."
+                    },
+                    "Name": {
+                      "type": "string",
+                      "description": "Name."
+                    },
+                    "FirstName": {
+                      "type": "string",
+                      "description": "First name."
+                    },
+                    "LastName": {
+                      "type": "string",
+                      "description": "Last name."
+                    },
+                    "EmployeeId": {
+                      "type": "string",
+                      "description": "Employee ID."
+                    },
+                    "FromMetadata": {
+                      "type": "object",
+                      "description": "Metadata.",
+                      "properties": {
+                        "Location": {
+                          "type": "string",
+                          "description": "Location."
+                        }
+                      }
+                    },
+                    "ToMetadata": {
+                      "type": "object",
+                      "description": "Metadata.",
+                      "properties": {
+                        "Location": {
+                          "type": "string",
+                          "description": "Location."
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "Date": "2021-02-03T18:40:31.097Z",
+                    "Timestamp": "2021-02-03T18:40:31.097Z",
+                    "Name": "Kate JR",
+                    "FirstName": "Kate",
+                    "LastName": "JR",
+                    "EmployeeId": "001",
+                    "FromMetadata": {
+                      "Location": "slc"
+                    },
+                    "ToMetadata": {
+                      "Location": "slc"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/recognition-summary/json": {
+      "get": {
+        "summary": "Recognition Summary",
+        "operationId": "getRecognitionSummary",
+        "tags": [
+          "Legacy Reports"
+        ],
+        "description": "Returns the recognition summary for the specified date range.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "default": "Date of first record for this company",
+                    "description": "The start date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-01-06:00\n"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "default": "Current Date/Time in UTC Format",
+                    "description": "The end date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-31-06:00\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "startDate": "2013-01-01-06:00",
+                    "endDate": "2013-01-31-06:00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Name": {
+                      "type": "string",
+                      "description": "Name."
+                    },
+                    "FirstName": {
+                      "type": "string",
+                      "description": "First name."
+                    },
+                    "LastName": {
+                      "type": "string",
+                      "description": "Last name."
+                    },
+                    "EmployeeId": {
+                      "type": "string",
+                      "description": "Employee ID."
+                    },
+                    "Metadata": {
+                      "type": "object",
+                      "description": "Metadata."
+                    },
+                    "QuestionAnswer": {
+                      "type": "string",
+                      "description": "Question Answer."
+                    }
+                  },
+                  "example": {
+                    "Name": "Kate JR",
+                    "FirstName": "Kate",
+                    "LastName": "JR",
+                    "EmployeeId": "001",
+                    "Metadata": {},
+                    "QuestionAnswer": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/redemption-details/json": {
+      "get": {
+        "summary": "Redemption Details",
+        "operationId": "getRedemptionDetails",
+        "tags": [
+          "Legacy Reports"
+        ],
+        "description": "Returns the redemption details for the specified date range.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "default": "Date of first record for this company",
+                    "description": "The start date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-01-06:00\n"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "default": "Current Date/Time in UTC Format",
+                    "description": "The end date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-31-06:00\n"
+                  },
+                  "lineItems": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show line items for redemptions.\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "startDate": "2013-01-01-06:00",
+                    "endDate": "2013-01-31-06:00",
+                    "lineItems": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Date": {
+                      "type": "string",
+                      "description": "Date"
+                    },
+                    "Timestamp": {
+                      "type": "string",
+                      "description": "Date"
+                    },
+                    "Name": {
+                      "type": "string",
+                      "description": "Name."
+                    },
+                    "FirstName": {
+                      "type": "string",
+                      "description": "First name."
+                    },
+                    "LastName": {
+                      "type": "string",
+                      "description": "Last name."
+                    },
+                    "EmployeeId": {
+                      "type": "string",
+                      "description": "Employee ID."
+                    },
+                    "Metadata": {
+                      "type": "object",
+                      "description": "Metadata.",
+                      "properties": {
+                        "Location": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "Items": {
+                      "type": "array",
+                      "description": "Question Answer.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "Title": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "Date": "2021-02-03T18:40:31.097Z",
+                    "Timestamp": "2021-02-03T18:40:31.097Z",
+                    "Name": "Kate JR",
+                    "FirstName": "Kate",
+                    "LastName": "JR",
+                    "EmployeeId": "001",
+                    "Metadata": {
+                      "Location": "slc"
+                    },
+                    "Items": [
+                      {
+                        "Title": "1 King Bed Room, Non-Smoking"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/redemption-summary/json": {
+      "get": {
+        "summary": "Redemption Summary",
+        "operationId": "getRedemptionSummary",
+        "tags": [
+          "Legacy Reports"
+        ],
+        "description": "Returns the redemption summary for the specified date range.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": {
+                    "type": "string",
+                    "default": "Date of first record for this company",
+                    "description": "The start date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-01-06:00\n"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "default": "Current Date/Time in UTC Format",
+                    "description": "The end date to filter redemptions. All timestamps are stored in UTC. Provide time zone information in the following format. ISO 8601 2013-01-31-06:00\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "startDate": "2013-01-01-06:00",
+                    "endDate": "2013-01-31-06:00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Name": {
+                      "type": "string",
+                      "description": "Name."
+                    },
+                    "FirstName": {
+                      "type": "string",
+                      "description": "First name."
+                    },
+                    "LastName": {
+                      "type": "string",
+                      "description": "Last name."
+                    },
+                    "EmployeeId": {
+                      "type": "string",
+                      "description": "Employee ID."
+                    },
+                    "Metadata": {
+                      "type": "object",
+                      "description": "Metadata."
+                    }
+                  },
+                  "example": {
+                    "Name": "Kate JR",
+                    "FirstName": "Kate",
+                    "LastName": "JR",
+                    "EmployeeId": "001",
+                    "Metadata": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recognize": {
+      "post": {
+        "summary": "Recognize with Recognition Program",
+        "operationId": "createRecognition",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "Creates a recognition for specified users.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipients": {
+                    "type": "array",
+                    "description": "A list of employeeIds, emails, or usernames.\nAll recipients have to be eligible to be recognized in the associated recognition program.\nAt least one is required, and if duplicate users are found or too many recipients are specified, an error will be returned.\n",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tagNames": {
+                    "type": "array",
+                    "description": "A list of tags to attach to the recognition.\nIf any of the tags are not found, or the tags are not eligible to be used with the associated Recognition Program, an error will be returned\n",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "recognitionProgramId": {
+                    "type": "integer",
+                    "description": "Not required if recognitionProgramId is specified.\n\nThe id of the recognition program.\nIf the recognition program is archived or the recognition program is not found, an error will be returned.\nThe recognition program settings will determine recognition limits and notification settings.\n"
+                  },
+                  "recognitionProgramName": {
+                    "type": "string",
+                    "description": "The name of the recognition program.\nIf the recognition program is archived, multiple are found with the same name, or the recognition program is not found, an error will be returned. \nThe recognition program settings will determine recognition limits and notification settings.\n"
+                  },
+                  "giver": {
+                    "type": "string",
+                    "description": "The giver for the recognition.\nThe giver has to be eligible to recognize in the associated recognition program.\nIf giver is null or an empty string, the company recognition bot will be used\n",
+                    "default": "Company Bot"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "A short note describing the reason the user is receiving the recognition.\n"
+                  },
+                  "budgetName": {
+                    "type": "string",
+                    "description": "Required if amount is greater than 0 and the recognition program uses allowable access budgets.\n\nIf the recognition program uses central budgets, or recipient based budgets, this field is ignored and the budget used will be based on the recognition program settings.\nIf the recognition program uses allowable access budgets, then budgetName is required, and the budget specified has to be allowed in the recognition program and the giver must have access to that budget.\nIf the budget is not allowed, or is archived an error is returned.\n"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "description": "The cash value of the recognition in currency.\nIf the recognition program does not allow custom point amounts, then the amount must be one of the presets for the recognition program.\n",
+                    "default": 0
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                    "description": "Whether or not the recognition is public.\nIf the associated recognition program only allows private recognitions, and isPublic is true, an error is returned.\nIf the recognition is private and there is more than one recipient, the recognition will appear as an individual recognition in the feed.\nIf the recognition is public and there is more than one recipient, the recognition will appear as a group recognition in the feed.\nIf the recognition is public, and a recipient is opted out of public recognitions, it will send them a private recognition.\n",
+                    "default": true
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "A new question type that allows users to give the recognition a headline. \nThe title response could have a maximum of 50 characters and can be submitted only when the recognition program has the title question enabled.\n",
+                    "default": null
+                  }
+                },
+                "required": [
+                  "recipients",
+                  "recognitionProgramId",
+                  "recognitionProgramName",
+                  "note",
+                  "budgetName"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "recipients": [
+                      "test_user_1@awardco.com",
+                      "test_user_2@awardco.com"
+                    ],
+                    "tagNames": [
+                      "testTag"
+                    ],
+                    "recognitionProgramName": "Test Recognition Program",
+                    "giver": "test_user_3@awardco.com",
+                    "note": "Your performance in quarter three was amazing",
+                    "budgetName": "Test Budget",
+                    "amount": 10,
+                    "isPublic": true,
+                    "title": "Once upon a time, in a land far, far, away"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "string[] with reasons for errors. It will be empty if no errors occur. Always present.\n"
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "errors": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "string[] with reasons for errors. It will be empty if no errors occur. Always present.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "errors": [
+                      "Note must not be null or whitespace",
+                      "Amount cannot be negative"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recognize/no-program": {
+      "post": {
+        "summary": "Recognize without Recognition Program",
+        "operationId": "createRecognitionNoProgram",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "Creates a recognition for specified users without a recognition program.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipients": {
+                    "type": "array",
+                    "description": "A list of employeeIds, emails, or usernames.\nAll recipients have to be eligible to be recognized in the associated recognition program.\nAt least one is required, and if duplicate users are found or too many recipients are specified, an error will be returned.\n",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tagNames": {
+                    "type": "array",
+                    "description": "A list of tags to attach to the recognition.\nIf any of the tags are not found, or the tags are not eligible to be used with the associated Recognition Program, an error will be returned\n",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "giver": {
+                    "type": "string",
+                    "description": "The giver for the recognition.\nIf giver is null or an empty string, the company recognition bot will be used\n",
+                    "default": "Company Bot"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "A short note describing the reason the user is receiving the recognition.\n"
+                  },
+                  "emailTemplateName": {
+                    "type": "string",
+                    "description": "Not required if sendNotifications is false\n\nThe email template name for notifying the user of the recognition.\nIf the email template is not a Recognition template, or there are multiple templates found with the same name, an error will be returned.\n"
+                  },
+                  "sendNotifications": {
+                    "type": "boolean",
+                    "description": "Whether or not to send email notifications to the recipients that are being recognized.\n",
+                    "default": true
+                  },
+                  "budgetName": {
+                    "type": "string",
+                    "description": "Required if amount is greater than 0 and the recognition program uses allowable access budgets.\n\nThe name of the active budget to use for rewarding.\nIf the giver user has access to only one active budget, the recognition will come from that budget regardless of the budgetName given.\nIf the giver user has access to more than one active budget, the budgetName will be used to find all active budgets with that name and will filter that list to only budgets to which the user has access or which have no metadata, user, or group access rules.\nGroup budgets and archived budgets cannot be used.\n"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "description": "The cash value of the recognition in the company's base currency.\n",
+                    "default": 0
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                    "description": "Whether or not the recognition is public.\nIf the recognition is private and there is more than one recipient, the recognition will appear as an individual recognition in the feed.\nIf the recognition is public and there is more than one recipient, the recognition will appear as a group recognition in the feed.\n",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "recipients",
+                  "note",
+                  "emailTemplateName",
+                  "budgetName"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "recipients": [
+                      "test_user_1@awardco.com",
+                      "test_user_2@awardco.com"
+                    ],
+                    "tagNames": [
+                      "testTag"
+                    ],
+                    "giver": "test_user_3@awardco.com",
+                    "note": "Your performance in quarter three was amazing",
+                    "emailTemplateName": "Recognition Notification",
+                    "sendNotifications": true,
+                    "budgetName": "Test Budget",
+                    "amount": 10,
+                    "isPublic": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "string[] with reasons for errors. It will be empty if no errors occur. Always present.\n"
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "errors": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "string[] with reasons for errors. It will be empty if no errors occur. Always present.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "errors": [
+                      "Note must not be null or whitespace",
+                      "Amount cannot be negative"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reward": {
+      "post": {
+        "summary": "Reward (DEPRECATED)",
+        "operationId": "deprecatedReward",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "The Reward endpoint is deprecated and will be disabled July 1, 2026.\n\nPlease transition to the 'Recognize without Recognition Program' or 'Recognize with Recognition Program' endpoints, which provide more robust validation, support recognition programs, and follow modern Awardco recognition rules and limits.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\nIf multiple active users match the given value, any of them could be selected as the user that is rewarding.\nIf no matching active user is found, an error will be returned saying, \"User not found.\"\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\nIf multiple active users match the given value, any of them could be selected as the user that is rewarding.\nIf no matching active user is found, an error will be returned saying, \"User not found.\"\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email of the user.\nIf multiple active users match the given value, any of them could be selected as the user that is rewarding.\nIf no matching active user is found, an error will be returned saying, \"User not found.\"\n"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The monetary amount to award the user (not points).\n",
+                    "default": 0
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "A short note describing the reason the user is receiving the award.\n"
+                  },
+                  "rewardedBy": {
+                    "type": "string",
+                    "description": "The employeeId, email, or username of the user that is rewarding.\nIf multiple users match the given value, any of them could be selected as the user that is rewarding.\nIf no matching active user is found, an error will be returned saying, \"No active users were found with the given rewardedBy value.\"\n",
+                    "default": "Bot"
+                  },
+                  "budgetName": {
+                    "type": "string",
+                    "description": "Required if amount is greater than 0 and the rewardedBy user has more than one active budget assigned to them\n\nThe name of the active budget to use for rewarding.\nIf the rewardedBy user has access to only one active budget, the recognition will come from that budget regardless of the budgetName given.\nIf the rewardedBy user has access to more than one active budget, the budgetName will be used to find all active budgets with that name and will filter that list to only budgets to which the user has access or which have no metadata, user, or group access rules. \nGroup budgets and archived budgets cannot be used.\n"
+                  },
+                  "notify": {
+                    "type": "boolean",
+                    "description": "Sends an email or SMS to the user notifying them of the recognition.\n",
+                    "default": true
+                  },
+                  "emailTemplate": {
+                    "type": "string",
+                    "description": "The name of the email template to use to notify the user.\n",
+                    "default": "Standard"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email",
+                  "note",
+                  "budgetName"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com",
+                    "amount": "50.0",
+                    "note": "Your performance in quarter three was amazing",
+                    "rewardedBy": "sarah@awardco.com",
+                    "budgetName": "Service Awards"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error. Only present when success is false.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bulk-reward": {
+      "post": {
+        "summary": "Bulk Reward (DEPRECATED)",
+        "operationId": "createBulkReward",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "The Bulk Reward endpoint is deprecated and will be disabled July 1, 2026.\n\nPlease begin transitioning to the 'Bulk Recognize' endpoint below, which supports more robust validation, respects global receiving limits, and avoids the concurrency issues present in Bulk Reward.\n\nBulk Reward does not respect global receiving limits.\nIf you would like to respect global receiving limits, it is recommended to use the /api/recognize endpoint.\n\nBulk Reward will succeed only if all recognitions are processed successfully.\nBulk Reward can experience concurrency issues if you recognize a lot of people and use a budget that is being used for other recognitions.\nAvoid using a Bulk Reward budget for multiple programs.\n",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The csv file that contains the recognition information. See below for more information on the CSV format.\n\nDownload the csv template: <ins>[ bulk-reward.csv ]<ins>\n\n[bulk-reward.csv]: api/bulk-reward/template\n\n**CSV Parameters:**\n- **From User (required):**\n    The employee id or email of the giver.\n- **To User (required):**\n    The employee id or email of the reward recipient.\n- **Note (required):**\n    A short note describing the reason the user is receiving the award.\n- **Program Name (required):**\n    The name of the recognition program to use for this reward.\n    Note that all rewards submitted through this API will still be subject to all program settings including eligibility limits, nomination limits, approvals, etc.\n    Also note that the recognition program can only have 1 question.\n- **Tags:**\n    Semicolon delimited list of tags to attach to the reward.\n- **Amount:**\n    How much the award is worth.\n    If the recognition program allows custom amounts and amounts are being displayed as points, then amount should be in points NOT currency.\n    If the recognition program allows custom amounts and point display is turned OFF but currency display is turned ON, then amount should be in the giver's country's currency NOT points.\n    Otherwise, amount should be provided in the company's currency NOT points.\n- **Budget Name:**\n    The name of the budget to use for rewarding. Required if the from user has more than one budget assigned to them.\n- **Public/Private:**\n    Determines whether the recognition will be public or private.\n    Valid values are \"public\" and \"private\".\n    If left blank and the recognition program allows public recognitions, the recognition will be public.\n    Otherwise if left blank the recognition will be private.\n"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "file": "contents-of-csv-file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error. Only present when success is false.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bulk-recognize/upload": {
+      "post": {
+        "summary": "Bulk Recognize",
+        "operationId": "createBulkRecognize",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "Creates a bulk recognition for specified users.\n",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The csv file that contains the recognition information. See below for more information on the CSV format.\n\nDownload the csv template: <ins>[ bulk-recognize.csv ]<ins>\n\n[bulk-recognize.csv]: api/bulk-recognize/template\n\n**CSV Parameters:**\n- **Recognition Date (ISO 8601) (required):**\n    The date that the recognition will be processed in ISO 8601 date format (YYYY-MM-DD or YYYY-MM-dd'T'HH:mm:ss.FFFK).\n    For example, 2023-03-20, 2023-03-20T19:58:00+00:00, or 2023-03-20T19:58:00Z\n- **From User (required):**\n    The employee id or email of the giver.\n- **To User (required):**\n    The employee id or email of the reward recipient.\n- **Note (required):**\n    The note that is attached to the recognition.\n- **Tags:**\n    Semicolon delimited list of tags to attach to the reward.\n- **Year:**\n    The \"Year\" column was typically used for anniversary years for manual service award uploads.\n- **Amount (Currency):**\n   The cash value of the recognition in the company's base currency.\n- **Budget Name (required if Amount is greater than 0):**\n    The name of the budget from which we will draw the points for the recognition.\n- **Public/Private (required):**\n    \"Public\" if the recognition should be visible to people other than the recipient and giver. \"Private\" if the recognition should only be visible to the recipient and giver.\n- **Email template:**\n    The name of the email template to use to send an email notification to the recipient.\n- **Program Name:**\n    The program name or id of the recognition program used for the recognition.\n    The program is useful for custom or limited redemption options and for reporting purposes.\n- **Notify Manager (Employee Id/Email):**\n    The employee id or email of the manager to notify of the recognition.\n- **Notify Date (ISO 8601) (required if notify Manager is not empty):**\n    The date to notify the manager.\n- **Notify Email Template (required if notify Manager is not empty):**\n    The name of the email template used to notify the manager.\n"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "file": "contents-of-csv-file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "row": {
+                        "type": "integer",
+                        "description": "The row number in the CSV file where the error occurred."
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "The error message."
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "FileError": {
+                    "value": [
+                      {
+                        "row": 2,
+                        "error": "Recognition Date not in the correct format. Acceptable formats: [\"yyyy-MM-dd\",\"yyyy-MM-dd'T'HH:mm:ss.FFFK\"]"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authorization failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "The message with the reason why the request failed.\nPresent only when unsuccessful due to Authentication or some other issue.\n"
+                    },
+                    "allMessages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "An array of messages with the reason why the request failed.\nPresent only when unsuccessful due to Authentication or some other issue.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Authorization Failed",
+                    "allMessages": [
+                      "Authorization Failed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/external-recognition/upload": {
+      "post": {
+        "summary": "External Recognition",
+        "operationId": "createExternalRecognition",
+        "tags": [
+          "Recognition"
+        ],
+        "description": "Creates an external recognition for specified users.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userEmail": {
+                    "type": "string",
+                    "description": "The email of the user receiving the external recognition.\n"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "The recognition note that will be displayed on the feed.\n"
+                  },
+                  "toPartyIdentifier": {
+                    "type": "string",
+                    "description": "The string that could be used to identify the user if the email and externalRecognitionProgramUrl are null, this could be a partial name or complete name.\n"
+                  },
+                  "externalRecognitionProgramUrl": {
+                    "type": "string",
+                    "description": "The url of the external recognition program that the recognition should be submitted to.\n",
+                    "default": ""
+                  }
+                },
+                "required": [
+                  "userEmail",
+                  "note",
+                  "toPartyIdentifier"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "userEmail": "testUser@awardco.com",
+                    "note": "You were a really great host today, thank you!",
+                    "toPartyIdentifier": "john from accounting",
+                    "externalRecognitionProgramUrl": "https://test.awardcotest.com/thanks/one-love"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful. Always present."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social-feed": {
+      "post": {
+        "summary": "Social Feed",
+        "operationId": "getSocialFeed",
+        "tags": [
+          "Feed"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "The page of the social feed.\n"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "The number of recognitions in the social feed to return.\n"
+                  }
+                }
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "page": 1,
+                    "limit": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful.\n"
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "The total number of recognitions available.\n"
+                    },
+                    "recognitions": {
+                      "type": "array",
+                      "description": "List of recognitions.\n",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "The ID of the recognition.\n"
+                          },
+                          "programName": {
+                            "type": "string",
+                            "description": "The name of the recognition program.\n"
+                          },
+                          "date": {
+                            "type": "string",
+                            "description": "The date the recognition was sent.\n"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "The name of the person who sent the recognition.\n"
+                          },
+                          "avatar": {
+                            "type": "string",
+                            "description": "The URL of the sender's profile picture.\n"
+                          },
+                          "employeeId": {
+                            "type": "string",
+                            "description": "The employee ID of the sender.\n"
+                          },
+                          "email": {
+                            "type": "string",
+                            "description": "The email of the sender.\n"
+                          },
+                          "text": {
+                            "type": "string",
+                            "description": "The text body of the recognition.\n"
+                          },
+                          "to": {
+                            "type": "array",
+                            "description": "Information about the recipients of the recognition.\n",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "description": "The name of the recognition recipient.\n"
+                                },
+                                "avatar": {
+                                  "type": "string",
+                                  "description": "The URL of the recipient's profile picture.\n"
+                                },
+                                "employeeId": {
+                                  "type": "string",
+                                  "description": "The employee ID of the recipient.\n"
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "description": "The email of the recipient.\n"
+                                }
+                              }
+                            }
+                          },
+                          "votes": {
+                            "type": "integer",
+                            "description": "The number of reactions on the recognition.\n"
+                          },
+                          "mediaUrl": {
+                            "type": "string",
+                            "description": "The URL of the media attached to the recognition.\n"
+                          },
+                          "recognitionUrl": {
+                            "type": "string",
+                            "description": "The URL of the recognition.\n"
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "description": "Any hashtags associated with the recognition.\n",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "tags": {
+                            "type": "array",
+                            "description": "Any tags included in the recognition.\n",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "comments": {
+                            "type": "array",
+                            "description": "Comments made on the recognition.\n",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "description": "The date the comment was added.\n"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "The name of the person who commented.\n"
+                                },
+                                "avatar": {
+                                  "type": "string",
+                                  "description": "The URL of the commenter's profile picture.\n"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "description": "The text body of the comment.\n"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "total": 12,
+                    "recognitions": [
+                      {
+                        "id": 12345,
+                        "programName": "Generic Recognitions",
+                        "date": "2013-01-22T22:36:47Z",
+                        "name": "Tom Jones",
+                        "avatar": "https://d2wt2yp0p02d06.cloudfront.net/profile/65/e8f2c9c6-5f47-45bc-8850-9afe1ebe2f5e.jpg",
+                        "employeeId": "104",
+                        "email": "tom.jones@awardco.com",
+                        "text": "Great job. Thanks for all your hard work!",
+                        "to": [
+                          {
+                            "name": "Sara Smith",
+                            "avatar": "https://d2wt2yp0p02d06.cloudfront.net/profile/65/e8f2c9c6-5f47-45bc-8850-9afe1ebe2f5e.jpg",
+                            "employeeId": "105",
+                            "email": "sara.smith@awardco.com"
+                          }
+                        ],
+                        "votes": 3,
+                        "mediaUrl": "https://res.cloudinary.com/awardco/image/upload/v1/recognition-programs/s5ylk0jev2q3uch7lyya",
+                        "recognitionUrl": "https://testcompany.awardco.com/feed/recognition/389445",
+                        "hashtags": [
+                          "#teamwork"
+                        ],
+                        "tags": [
+                          "Teamwork"
+                        ],
+                        "comments": [
+                          {
+                            "date": "2013-01-22T22:36:47Z",
+                            "name": "Kim Stevenson",
+                            "avatar": "https://d2wt2yp0p02d06.cloudfront.net/profile/65/e8f2c9c6-5f47-45bc-8850-9afe1ebe2f5e.jpg",
+                            "text": "I agree. Sara does work really hard."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful.\n"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for Error\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Error message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/custom-feed": {
+      "get": {
+        "summary": "Custom Feed",
+        "operationId": "getCustomFeed",
+        "tags": [
+          "Feed"
+        ],
+        "description": "Get recognitions with the ability to filter recognitions to only recognitions that match the provided metadata filters.\n\n```\nExample:\nGET https://api.awardco.com/api/v1/custom-feed?page=1&limit=100&metadataFilter=[\"Product\",\"Engineering\"]\n```\n### Tips:\nWe recommend calling the API every five minutes to check for new recognitions for each of the respective metadata filters.\n\nIf the metadata field that is used as a filter or the values are archived, a warning email will be sent to the company's admins. New recognitions will not show for the archived fields or values.\n",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "The page of the custom feed. The max value is 100,000.\n"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "The number of recognitions in the custom feed to return (max 1000)\n"
+          },
+          {
+            "name": "metadataFilter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "By default, the custom feed returns all public recognitions.\n\nYou may specify metadata values to filter by using a string JSON array.\n* metadataFilter=[\"Product\",\"Engineering\"]\n* Escape any double quotes inside a metadata value. For example: \"Manager \\\\\"East Coast\\\\\" Operations\"\n* If the provided JSON array is not valid, a 400 error will be thrown\n"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "The number of recognitions for the given filters.\n"
+                    },
+                    "recognitions": {
+                      "type": "array",
+                      "description": "The recognitions where one of the people that are the giver or recipients match the filter.\n",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "The ID of the recognition.\n"
+                          },
+                          "programName": {
+                            "type": "string",
+                            "description": "The name of the recognition program.\n"
+                          },
+                          "date": {
+                            "type": "string",
+                            "description": "The date the recognition was sent.\n"
+                          },
+                          "giver": {
+                            "type": "object",
+                            "description": "Information about the giver of the recognition.\n",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "description": "The name of the person who sent the recognition.\n"
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "description": "The URL of the sender's profile picture.\n"
+                              },
+                              "employeeId": {
+                                "type": "string",
+                                "description": "The employee ID of the sender.\n"
+                              },
+                              "email": {
+                                "type": "string",
+                                "description": "The email of the sender.\n"
+                              },
+                              "customMetadata": {
+                                "type": "object",
+                                "description": "The metadata filters that the giver matches.\n",
+                                "properties": {
+                                  "filterValue": {
+                                    "description": "The value that matches the current filter being used.\n",
+                                    "type": "string"
+                                  },
+                                  "displayOne": {
+                                    "description": "A value to display on the recognition.\n",
+                                    "type": "string"
+                                  },
+                                  "displayTwo": {
+                                    "type": "string",
+                                    "description": "A value to display on the recognition.\n"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "text": {
+                            "type": "string",
+                            "description": "The text body of the recognition.\n"
+                          },
+                          "numReactions": {
+                            "type": "integer",
+                            "description": "The number of reactions on the recognition.\n"
+                          },
+                          "mediaUrl": {
+                            "type": "string",
+                            "description": "The URL of the media attached to the recognition.\n"
+                          },
+                          "recognitionUrl": {
+                            "type": "string",
+                            "description": "The URL of the recognition.\n"
+                          },
+                          "recipients": {
+                            "type": "array",
+                            "description": "Information about the recipients of the recognition.\n",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "description": "The name of the recognition recipient.\n"
+                                },
+                                "avatar": {
+                                  "type": "string",
+                                  "description": "The URL of the recipient's profile picture.\n"
+                                },
+                                "employeeId": {
+                                  "type": "string",
+                                  "description": "The employee ID of the recipient.\n"
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "description": "The email of the recipient.\n"
+                                },
+                                "customMetadata": {
+                                  "type": "object",
+                                  "description": "The metadata filters that the giver matches.\n",
+                                  "properties": {
+                                    "filterValue": {
+                                      "description": "The value that matches the current filter being used.\n",
+                                      "type": "string"
+                                    },
+                                    "displayOne": {
+                                      "description": "A value to display on the recognition.\n",
+                                      "type": "string"
+                                    },
+                                    "displayTwo": {
+                                      "type": "string",
+                                      "description": "A value to display on the recognition.\n"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "hashtags": {
+                            "type": "array",
+                            "description": "Any hashtags associated with the recognition.\n",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "tags": {
+                            "type": "array",
+                            "description": "Any tags included in the recognition.\n",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "comments": {
+                            "type": "array",
+                            "description": "Comments made on the recognition.\n",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "description": "The date the comment was added.\n"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "The name of the person who commented.\n"
+                                },
+                                "avatar": {
+                                  "type": "string",
+                                  "description": "The URL of the commenter's profile picture.\n"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "description": "The text body of the comment.\n"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "total": 29301,
+                    "recognitions": [
+                      {
+                        "id": 27714449,
+                        "programName": "The Awardco Way",
+                        "date": "2023-03-28T21:57:10Z",
+                        "giver": {
+                          "name": "John Smith",
+                          "avatar": "https://res.cloudinary.com/awardco/image/upload/h_80/v1/avatars/biyeybmta7ibv1qk7jzy",
+                          "employeeId": "Z456",
+                          "email": "john.smith@awardo.com",
+                          "customMetadata": {
+                            "filterValue": "London",
+                            "displayOne": "Team Lead",
+                            "displayTwo": "Engineering"
+                          }
+                        },
+                        "text": "You're doing great work!",
+                        "numReactions": 0,
+                        "mediaUrl": "https://assets-global.website-files.com/5fa874b3f9ced09e0026328c/5fa88e3f7606afb191a63c00_awardco-horizontal-black.svg",
+                        "recognitionUrl": "https://aco.awardco.com/feed/recognition/27714449",
+                        "recipients": [
+                          {
+                            "name": "Linda Jones",
+                            "avatar": "https://res.cloudinary.com/awardco/image/upload/h_80/v1/avatars/k9njohsayvcchwhgptt1",
+                            "employeeId": "Z123",
+                            "email": "linda.jones@awardco.com",
+                            "customMetadata": {
+                              "filterValue": "Atlanta",
+                              "displayOne": "Product Manager",
+                              "displayTwo": "Product"
+                            }
+                          }
+                        ],
+                        "hashtags": [
+                          "#lioness-mentality",
+                          "#fly-the-w"
+                        ],
+                        "tags": [
+                          "Lioness Mentality",
+                          "Fly the W"
+                        ],
+                        "comments": [
+                          {
+                            "date": "2023-03-28T21:57:46Z",
+                            "name": "Erika Harvey",
+                            "avatar": "https://res.cloudinary.com/awardco/image/upload/h_80/v1/avatars/k9njohsayvcchwhgptt1",
+                            "text": "Linda is awesome!"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "Reason for Error\n"
+                    }
+                  },
+                  "example": {
+                    "error": "metadataFilter is not a valid JSON array"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/custom-feed/filter-values": {
+      "get": {
+        "summary": "Custom Feed Filter Values",
+        "operationId": "getCustomFeedFilterValues",
+        "tags": [
+          "Feed"
+        ],
+        "description": "Get all possible values for the current metadata filter.\n\n```\nExample:\nGET https://api.awardco.com/api/v1/custom-feed/filter-values\n```\n### Tips:\nIf no metadata filter has been set, no filter values will be returned.\n",
+        "responses": {
+          "200": {
+            "description": "A successful response.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "filterValues": {
+                      "type": "array",
+                      "description": "An array of all possible values for the current metadata filter.\n",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "example": {
+                    "filterValues": [
+                      "London",
+                      "New York",
+                      "Mexico City"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An unsuccessful response.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "description": "The reason for an error\n"
+                    }
+                  },
+                  "example": {
+                    "error": "No metadata filter has been set"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/memory-book/upload-associations": {
+      "get": {
+        "summary": "MemoryBooks Associations Upload",
+        "operationId": "getMemoryBooksAssociationsUpload",
+        "tags": [
+          "MemoryBooks"
+        ],
+        "description": "Associations uploaded through this endpoint will be sent memory book signing invitations on an employee's anniversary.\nNOTE: this endpoint is a permissioned endpoint and requires an api key with the \"api/memory-book/upload-associations\" permission.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Associations": {
+                    "type": "array",
+                    "description": "The list of employee ID pairs that will be associated. MAX: 1000 per API call.\n",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "EmployeeId": {
+                          "type": "string",
+                          "description": "The employee ID who owns the MemoryBook.\n"
+                        },
+                        "AssociationEmployeeId": {
+                          "type": "string",
+                          "description": "The employee ID who will be reminded to sign the MemoryBook.\n"
+                        }
+                      },
+                      "required": [
+                        "EmployeeId",
+                        "AssociationEmployeeId"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "Associations"
+                ]
+              },
+              "examples": {
+                "Base": {
+                  "value": {
+                    "Associations": [
+                      {
+                        "EmployeeId": "abc123",
+                        "AssociationEmployeeId": "def456"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "True/False"
+                    }
+                  },
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "True/False"
+                    },
+                    "message": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The error message of the response.\n"
+                    },
+                    "allMessages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "An array of messages with the reason why the request failed.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "An unknown error occurred. Error code: 000000\n",
+                    "allMessages": [
+                      "An unknown error occurred. Error code: 000000\n"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activate-user": {
+      "post": {
+        "summary": "Activate User",
+        "operationId": "activateUser",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email address of the user.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/archive-user": {
+      "post": {
+        "summary": "Archive User",
+        "operationId": "archiveUser",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email address of the user.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-user": {
+      "post": {
+        "summary": "Create User",
+        "operationId": "createUser",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "The employee id of the user.\n"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "description": "The first (legal) name of the user.\n"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "description": "The last name of the user.\n"
+                  },
+                  "preferredFirstName": {
+                    "type": "string",
+                    "description": "The preferred name of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "The username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "The email address of the user.\n"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "The password of the user.\n"
+                  },
+                  "countryCode": {
+                    "type": "string",
+                    "default": "US",
+                    "description": "The two-letter country code of the user. (ISO3166-1 alpha-2)\n"
+                  },
+                  "notify": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Sends an email to the user notifying them of the new account creation.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "firstName",
+                  "lastName"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "employeeId": "E0012",
+                    "firstName": "Thomas",
+                    "lastName": "Jones",
+                    "preferredFirstName": "Tom",
+                    "username": "test",
+                    "email": "test@awardco.com",
+                    "password": "SecurePassword",
+                    "notify": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/import/users/v2": {
+      "post": {
+        "summary": "Import Users v2",
+        "operationId": "importUsersV2",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The csv file that contains the user information.\n\nDownload the csv template: <ins>[ import-users.csv ]<ins>\n\n[import-users.csv]: content/import-template/import-users-v2.csv\n"
+                  },
+                  "archive": {
+                    "type": "string",
+                    "description": "True = Any user previously in the system that is not on the file being imported will be assigned archive status.\n\nFalse = Users will not be archived\n"
+                  },
+                  "emailOverride": {
+                    "type": "string",
+                    "description": "True = The email in the file is treated as correct and any value will override an existing value.\n\nFalse = The email in the system is treated as correct. Emails will be added to users with blank values, but no emails will be overridden.\n"
+                  },
+                  "languageOverride": {
+                    "type": "string",
+                    "default": false,
+                    "description": "True = The language in the file is treated as correct and any value will override an existing value.\n\nFalse = The language in the system is treated as correct. Language will be added to users with blank values, but no language will be overridden.\n"
+                  },
+                  "hireDateOverride": {
+                    "type": "string",
+                    "default": true,
+                    "description": "True = The hire date in the file is treated as correct and any value will override an existing value.\n\nFalse = The hire date in the system is treated as correct. Hire dates will be added to users with blank values, but no hire dates will be overridden.\n"
+                  },
+                  "passwordOverride": {
+                    "type": "string",
+                    "default": "no",
+                    "description": "all = The password in the file is treated as correct and any value will override an existing value.\n\nneverloggedin = If a user has logged in, the password in the system is treated as correct. For users who have never logged in, the password in the file is treated as correct and any value will override an existing value.\n\nno = The password in the system is treated as correct. Passwords will be added to users with blank values, but no passwords will be overridden.\n"
+                  },
+                  "addPhoneNumberPlusSign": {
+                    "type": "string",
+                    "default": false,
+                    "description": "True = Add a plus sign in front of phone number data of the phoneNumber column.\n\nFalse = Keep phoneNumber column as it is in the import data.\n"
+                  },
+                  "doNotArchive": {
+                    "type": "string",
+                    "description": "Comma-separated string of employeeIds who are not in this file, but shall remain in the system. (e.g. 1,12,27492).\n"
+                  },
+                  "delimiter": {
+                    "type": "string",
+                    "description": "The delimiter used when not using a comma delimited format (e.g. | or \\t)\n"
+                  },
+                  "headerMappings": {
+                    "type": "string",
+                    "description": "List any headers that do not conform to the expected standard names to map them into the correct fields.\nWhitespace and casing does not have to match.\n\nFormat: Field in the file:Field it should map to, Another field in the file: Field it should map to (e.g. Employee Number: Employee ID, FName: First Name).\n"
+                  },
+                  "valueMappings": {
+                    "type": "string",
+                    "description": "List any values that do not conform to the expected standard values to map them into the correct fields.\nMatch the text found in the file perfectly (cases and spaces).\nThis only applies to values in the the Country Code (Iso 2 Format) and Language columns.\n\nFormat: Field in the file: Field it should map to, Another field in the file: Field it should map to (e.g. United Kingdom: GB, English: en).\n"
+                  },
+                  "metadataHeaders": {
+                    "type": "string",
+                    "description": "Comma-separated string of any headers that do not conform to the expected metadata import format (#header) to map them in as metadata\n"
+                  },
+                  "metadataFilters": {
+                    "type": "string",
+                    "description": "List any metadata names and values to filter out users by metadata from the import Format: MetadataName:[MetadataValue1,MetadataValue2]\n"
+                  },
+                  "approverMappings": {
+                    "type": "string",
+                    "description": "A comma separated string of rule mappings to be updated Format: CSVHeaderTitle:ApprovalOverrideRuleId.\n"
+                  },
+                  "privateMetadataHeaders": {
+                    "type": "string",
+                    "description": "Comma-separated string of any headers that do not conform to the expected private metadata import format (^header) to map them in as private metadata.\n"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "file": "contents-of-csv-file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "A message confirming that the import has been queued if successful or the reason for error if failed.\n"
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "message": "We've begun processing your file. You will receive an email once it has finished uploading."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "A message confirming that the import has been queued if successful or the reason for error if failed."
+                    }
+                  }
+                },
+                "examples": {
+                  "Error": {
+                    "value": {
+                      "success": false,
+                      "message": "Reason for error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reset-password": {
+      "post": {
+        "summary": "Reset Password",
+        "operationId": "resetPassword",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email address of the user.\n"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "The new password of the user.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email",
+                  "password"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com",
+                    "password": "SecurePassword"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    }
+                  }
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profile-picture/bulk-upload": {
+      "post": {
+        "summary": "Upload Bulk Profile Picture",
+        "operationId": "updateBulkProfilePicture",
+        "tags": [
+          "Users"
+        ],
+        "description": "This endpoint is used to change the profile picture for up to 50 users per request.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "upload": {
+                    "type": "array",
+                    "description": "A list of objects with employeeIDs and profilePictures. Max number of uploads per request: 50.\n",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "employeeIdentifier": {
+                          "type": "string",
+                          "description": "The EmployeeID that corresponds to the Employee ID in the Awardco platform.\n"
+                        },
+                        "profilePicture": {
+                          "type": "string",
+                          "description": "The base 64 encoded string representing the image to upload. Image must not exceed 20mb.\n"
+                        }
+                      },
+                      "required": [
+                        "employeeIdentifier",
+                        "profilePicture"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "upload"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "upload": [
+                      {
+                        "employeeIdentifier": "abc123",
+                        "profilePicture": "base64EncodedImageString"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "successfulUploads": {
+                      "type": "array",
+                      "description": "A list of objects containing the employeeIDs and the url of where their image is stored in cloud storage.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeIdentifier": {
+                            "type": "string",
+                            "description": "The employeeID of the attempted upload.\n"
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "The url to where the image is stored.\n"
+                          }
+                        }
+                      }
+                    },
+                    "failedUploads": {
+                      "type": "array",
+                      "description": "A list of objects containing the employeeIDs and the error message for the attempted upload.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeIdentifier": {
+                            "type": "string",
+                            "description": "The employeeID of the attempted upload.\n"
+                          },
+                          "errorMessage": {
+                            "type": "string",
+                            "description": "Reason for error.\n"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "successfulUploads": [
+                      {
+                        "employeeIdentifier": "abc123",
+                        "url": "fakelink.cloudstorage.com/image.jpg"
+                      }
+                    ],
+                    "failedUploads": [
+                      {
+                        "employeeIdentifier": "def456",
+                        "errorMessage": "User not found"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-balance": {
+      "post": {
+        "summary": "User Balance",
+        "operationId": "userBalance",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email address of the user.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "balance": {
+                      "type": "number",
+                      "description": "The balance of the user.\n"
+                    },
+                    "currencyCode": {
+                      "type": "string",
+                      "description": "The currency code of the balance.\n"
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "balance": 500,
+                    "currencyCode": "USD"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-exists": {
+      "post": {
+        "summary": "User Exists",
+        "operationId": "userExists",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "employeeId": {
+                    "type": "string",
+                    "description": "Required if no email or username\n\nThe employee id of the user.\n"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "Required if no employeeId or email\n\nThe username of the user.\n"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Required if no employeeId or username\n\nThe email address of the user.\n"
+                  }
+                },
+                "required": [
+                  "employeeId",
+                  "username",
+                  "email"
+                ]
+              },
+              "examples": {
+                "Base Example": {
+                  "value": {
+                    "email": "test@awardco.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "exists": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the user exists.\n"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "exists": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "Users",
+        "operationId": "users",
+        "tags": [
+          "Users"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "total": {
+                      "type": "number",
+                      "description": "The total number of users returned.\n"
+                    },
+                    "users": {
+                      "type": "array",
+                      "description": "List of users. See example below.\n",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "employeeId": {
+                            "type": "string",
+                            "description": "The employee ID of the user.\n"
+                          },
+                          "firstName": {
+                            "type": "string",
+                            "description": "The first name of the user.\n"
+                          },
+                          "lastName": {
+                            "type": "string",
+                            "description": "The last name of the user.\n"
+                          },
+                          "email": {
+                            "type": "string",
+                            "description": "The email address of the user.\n"
+                          },
+                          "balance": {
+                            "type": "integer",
+                            "description": "The balance of the user.\n"
+                          },
+                          "currencyCode": {
+                            "type": "string",
+                            "description": "The currency code of the user.\n"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "example": {
+                    "success": true,
+                    "total": 500,
+                    "users": [
+                      {
+                        "employeeId": "12345",
+                        "firstName": "Tom",
+                        "lastName": "Jones",
+                        "email": "test@awardco.com",
+                        "balance": 125,
+                        "currencyCode": "USD"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. The request was invalid or cannot be served.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Boolean value indicating if the api call was successful."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Reason for error.\n"
+                    }
+                  },
+                  "example": {
+                    "success": false,
+                    "message": "Reason for error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "RecognitionCompletedEvent": {
+      "post": {
+        "operationId": "recognitionCompletedEvent",
+        "summary": "Recognition Completed Event",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "## Description\n\nThese webhook events are sent when recognitions are completed and make it through the approval process. If recognitions are edited or deleted, no event will be triggered.\n\nIf you are integrating webhooks for multiple clients, you can use the companyId or companyUrl to uniquely identify the client.\n\n<br>\n\n***\n\n<details>\n<summary>Example Payload</summary>\n\n```json\n  {\n    \"companyId\": 1,\n    \"companyName\": \"Awardco\",\n    \"companyUrl\": \"https://aco.awardco.com\",\n    \"recognitionId\": 124524356,\n    \"programName\": \"The Awardco Way\",\n    \"type\": \"regular\",\n    \"completedDateTime\": \"2024-02-22 15:40:42.860\",\n    \"note\": \"You are doing great work. Keep it up!\",\n    \"mediaUrl\": \"https://res.cloudinary.com/awardco/image/upload/c_limit,h_375,w_750/v1/recognition-programs/lr4awegpx2g6a98x1dhq\",\n    \"recognitionUrl\": \"https://aco.awardco.com/feed/recognition/41960534\",\n    \"hashtags\": [\"#teamwork\", \"#grit\", \"#level-up\"],\n    \"tags\": [\"Teamwork\", \"Grit\", \"Level Up\"],\n    \"isPrivate\": true,\n    \"monetaryInfo\": {\n      \"amount\": 1,\n      \"points\": 1,\n      \"currencyCode\": \"USD\",\n      \"budgetName\": \"Main Budget\",\n      \"taxable\": true\n    },\n    \"giver\": {\n      \"fullDisplayName\": \"John Smith\",\n      \"firstName\": \"John\",\n      \"firstDisplayName\": null,\n      \"lastName\": \"Smith\",\n      \"employeeId\": \"5232312\",\n      \"email\": \"john.smith@awardco.com\",\n      \"username\": \"john.smith\",\n      \"avatarUrl\": \"https://res.cloudinary.com/awardco/image/upload/h_80/v1/avatars/biyeybmta7ibv1qk7jzy\",\n      \"countryCode\": \"US\",\n      \"metadata\": {\n        \"jobTitle\": \"Software Engineer\"\n      }\n    },\n    \"recipients\": [\n      {\n        \"fullDisplayName\": \"Jane Doe\",\n        \"firstName\": \"Jane\",\n        \"firstDisplayName\": \"Jane\",\n        \"lastName\": \"Doe\",\n        \"employeeId\": \"6342312\",\n        \"email\": \"jane.doe@awardco.com\",\n        \"username\": null,\n        \"avatarUrl\": \"https://res.cloudinary.com/awardco/image/upload/h_80/v1/avatars/biyeybmta7ibv1qk7jzy\",\n        \"receivesPrivateRecognitions\": true,\n        \"countryCode\": \"MX\",\n        \"metadata\": {\n          \"jobTitle\": \"Product Manager\"\n        }\n      }\n    ]\n  }\n```\n\n</details>",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "integer",
+                    "description": "Unique id for a company."
+                  },
+                  "companyName": {
+                    "type": "string",
+                    "description": "The company Display Name."
+                  },
+                  "companyUrl": {
+                    "type": "string",
+                    "description": "The company's unique base url Example - \"https://[subdomain].awardco.com\"."
+                  },
+                  "recognitionId": {
+                    "type": "integer",
+                    "description": "The unique id for this recognition event."
+                  },
+                  "programName": {
+                    "type": "string",
+                    "description": "The recognition program for the recognition."
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "The type of recognition. One of the following values - regular, card, survey, earn, birthday, service-award, onboarding, one-time-memory-book, queued-recognition."
+                  },
+                  "completedDateTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "(UTC time zone) The time when the recognition was completed."
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "The note given with the recognition."
+                  },
+                  "mediaUrl": {
+                    "type": "string",
+                    "description": "The url for the media attached to the recognition."
+                  },
+                  "recognitionUrl": {
+                    "type": "string",
+                    "description": "A url that links directly to the recognition in Awardco."
+                  },
+                  "hashtags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Will be empty if no hashtags were used."
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Will be empty if no tags were used."
+                  },
+                  "isPrivate": {
+                    "type": "boolean",
+                    "description": "Whether the recognition is private."
+                  },
+                  "monetaryInfo": {
+                    "type": "object",
+                    "description": "Information about the monetary value of the recognition.\n",
+                    "properties": {
+                      "amount": {
+                        "type": "integer",
+                        "description": "The amount in the company's currency given with the recognition. Whole numbers only, no cents."
+                      },
+                      "points": {
+                        "type": "integer",
+                        "description": "The points given. Some companies have point multipliers, so the amount may be different from the points."
+                      },
+                      "currencyCode": {
+                        "type": "string",
+                        "description": "The currency code used for the company's monetary recognitions."
+                      },
+                      "budgetName": {
+                        "type": "string",
+                        "description": "The name of the budget from which the funds for the recognition were taken. Will be null if the amount is 0."
+                      },
+                      "taxable": {
+                        "type": "boolean",
+                        "description": "The taxability of the budget. Some recognitions are not considered taxable. Will be null if the amount is 0."
+                      }
+                    },
+                    "required": [
+                      "amount",
+                      "points",
+                      "currencyCode"
+                    ]
+                  },
+                  "giver": {
+                    "type": "object",
+                    "properties": {
+                      "fullDisplayName": {
+                        "type": "string",
+                        "description": "The user's full name like John Smith."
+                      },
+                      "firstName": {
+                        "type": "string",
+                        "description": "The user's first name."
+                      },
+                      "firstDisplayName": {
+                        "type": "string",
+                        "description": "The user's display first name."
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "description": "The user's last name."
+                      },
+                      "employeeId": {
+                        "type": "string",
+                        "description": "The user's employeeId."
+                      },
+                      "email": {
+                        "type": "string",
+                        "description": "The user's email."
+                      },
+                      "username": {
+                        "type": "string",
+                        "description": "The user's username."
+                      },
+                      "avatarUrl": {
+                        "type": "string",
+                        "description": "The url to the user's profile picture."
+                      },
+                      "receivesPrivateRecognitions": {
+                        "type": "boolean",
+                        "description": "Recognition recipients can choose to receive only private recognitions if they opt into it and the company allows it. To honor their choice, you may want to exclude them from any public displays. This will not be present on the giver."
+                      },
+                      "countryCode": {
+                        "type": "string",
+                        "description": "Country code for the user like \"US\"."
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "description": "Each key in the dictionary is a metadata field and every value is its corresponding metadata value, which can be null. Dictionary of strings to strings.\n"
+                      }
+                    },
+                    "required": [
+                      "fullDisplayName",
+                      "firstName",
+                      "lastName",
+                      "countryCode",
+                      "metadata"
+                    ]
+                  },
+                  "recipients": {
+                    "type": "array",
+                    "description": "Will always have at least one recipient.\n",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "fullDisplayName": {
+                          "type": "string",
+                          "description": "The user's full name like John Smith."
+                        },
+                        "firstName": {
+                          "type": "string",
+                          "description": "The user's first name."
+                        },
+                        "firstDisplayName": {
+                          "type": "string",
+                          "description": "The user's display first name."
+                        },
+                        "lastName": {
+                          "type": "string",
+                          "description": "The user's last name."
+                        },
+                        "employeeId": {
+                          "type": "string",
+                          "description": "The user's employeeId."
+                        },
+                        "email": {
+                          "type": "string",
+                          "description": "The user's email."
+                        },
+                        "username": {
+                          "type": "string",
+                          "description": "The user's username."
+                        },
+                        "avatarUrl": {
+                          "type": "string",
+                          "description": "The url to the user's profile picture."
+                        },
+                        "receivesPrivateRecognitions": {
+                          "type": "boolean",
+                          "description": "Recognition recipients can choose to receive only private recognitions if they opt into it and the company allows it. To honor their choice, you may want to exclude them from any public displays. This will not be present on the giver."
+                        },
+                        "countryCode": {
+                          "type": "string",
+                          "description": "Country code for the user like \"US\"."
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "description": "Each key in the dictionary is a metadata field and every value is its corresponding metadata value, which can be null. Dictionary of strings to strings.\n"
+                        }
+                      },
+                      "required": [
+                        "fullDisplayName",
+                        "firstName",
+                        "lastName",
+                        "countryCode",
+                        "metadata"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "companyName",
+                  "companyUrl",
+                  "recognitionId",
+                  "type",
+                  "completedDateTime",
+                  "mediaUrl",
+                  "recognitionUrl",
+                  "tags",
+                  "isPrivate",
+                  "monetaryInfo",
+                  "giver",
+                  "recipients"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook successfully received by the client."
+          },
+          "400": {
+            "description": "Client's webhook endpoint received a malformed request."
+          },
+          "500": {
+            "description": "Client's webhook endpoint encountered an internal error."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apiKey",
+        "description": "API key request header"
+      }
+    }
+  }
+}
