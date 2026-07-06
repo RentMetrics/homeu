@@ -5,18 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ADMIN_EMAILS } from '@/lib/admin';
 
 interface AdminAuthProps {
   children: React.ReactNode;
 }
-
-// Define admin email addresses
-const ADMIN_EMAILS = [
-  'curtisholder91@gmail.com',
-  'curtisholder@gmail.com',
-  'curtis@homeu.co',
-  'cholder@excelsaholding.com',
-];
 
 export function AdminAuth({ children }: AdminAuthProps) {
   const { user, isLoaded } = useUser();

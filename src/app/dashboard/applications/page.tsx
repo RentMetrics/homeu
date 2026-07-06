@@ -1,183 +1,194 @@
 "use client";
 
-import { FileText, Upload, Download, Share2, Plus } from "lucide-react";
+import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import {
+  FileText,
+  Plus,
+  Building2,
+  Mail,
+  Zap,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const applications = [
-  {
-    id: "APP-001",
-    property: "Sunset Apartments",
-    status: "In Progress",
-    date: "Feb 15, 2024",
-    documents: 3,
-  },
-  {
-    id: "APP-002",
-    property: "Ocean View Condos",
-    status: "Submitted",
-    date: "Jan 30, 2024",
-    documents: 5,
-  },
-];
+const PROVIDER_LABELS: Record<string, string> = {
+  entrata: "Entrata",
+  yardi: "Yardi Voyager",
+  realpage: "RealPage",
+  buildium: "Buildium",
+  appfolio: "AppFolio",
+  rentmanager: "Rent Manager",
+};
 
-const savedDocuments = [
-  {
-    name: "Driver's License",
-    type: "ID",
-    date: "Feb 1, 2024",
-  },
-  {
-    name: "Pay Stub - January",
-    type: "Income",
-    date: "Feb 1, 2024",
-  },
-  {
-    name: "Bank Statement",
-    type: "Financial",
-    date: "Feb 1, 2024",
-  },
-];
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; className: string; icon: typeof Clock }
+> = {
+  submitted: { label: "Submitted", className: "bg-blue-100 text-blue-700", icon: Clock },
+  received: { label: "Received", className: "bg-indigo-100 text-indigo-700", icon: CheckCircle2 },
+  under_review: { label: "Under Review", className: "bg-amber-100 text-amber-700", icon: Clock },
+  approved: { label: "Approved", className: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
+  rejected: { label: "Not Approved", className: "bg-red-100 text-red-700", icon: XCircle },
+  failed: { label: "Delivery Failed", className: "bg-red-100 text-red-700", icon: AlertTriangle },
+};
+
+const SECTION_LABELS: Record<string, string> = {
+  personal: "Personal Info",
+  employment: "Employment",
+  rental_history: "Rental History",
+  financial: "Financial Verification",
+  household: "Household",
+};
 
 export default function ApplicationsPage() {
+  const { user } = useUser();
+  const submissions = useQuery(
+    api.pms.getMySubmissions,
+    user?.id ? { userId: user.id } : "skip"
+  );
+
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Applications</h2>
-        <p className="text-muted-foreground">
-          Manage your rental applications and documents.
-        </p>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Button className="h-auto py-4">
-          <Plus className="mr-2 h-4 w-4" />
-          New Application
-        </Button>
-        <Button variant="outline" className="h-auto py-4">
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Document
-        </Button>
-        <Button variant="outline" className="h-auto py-4">
-          <Download className="mr-2 h-4 w-4" />
-          Download Profile
-        </Button>
-      </div>
-
-      {/* Active Applications */}
-      <div className="rounded-xl border bg-card p-6">
-        <h3 className="text-lg font-semibold mb-6">Active Applications</h3>
-        <div className="space-y-4">
-          {applications.map((app) => (
-            <div
-              key={app.id}
-              className="flex items-center justify-between p-4 border rounded-lg"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <FileText className="h-6 w-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="font-medium">{app.property}</p>
-                  <p className="text-sm text-gray-500">ID: {app.id}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-sm font-medium">{app.status}</p>
-                  <p className="text-sm text-gray-500">{app.date}</p>
-                </div>
-                <Button variant="ghost" size="icon">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Applications</h2>
+          <p className="text-muted-foreground">
+            Track applications you&apos;ve sent to properties — directly into their
+            management system or by email.
+          </p>
         </div>
-      </div>
-
-      {/* Saved Documents */}
-      <div className="rounded-xl border bg-card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Saved Documents</h3>
-          <Button variant="outline" size="sm">
-            <Upload className="mr-2 h-4 w-4" />
-            Upload New
+        <Link href="/dashboard/application">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            My Application
           </Button>
-        </div>
-        <div className="space-y-4">
-          {savedDocuments.map((doc, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-4 border rounded-lg"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-gray-50 rounded-lg">
-                  <FileText className="h-6 w-6 text-gray-500" />
-                </div>
-                <div>
-                  <p className="font-medium">{doc.name}</p>
-                  <p className="text-sm text-gray-500">{doc.type}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+        </Link>
       </div>
 
-      {/* Application Profile */}
       <div className="rounded-xl border bg-card p-6">
-        <h3 className="text-lg font-semibold mb-6">Application Profile</h3>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h4 className="font-medium mb-4">Personal Information</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Full Name</span>
-                <span className="font-medium">John Doe</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Email</span>
-                <span className="font-medium">john@example.com</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Phone</span>
-                <span className="font-medium">(555) 123-4567</span>
-              </div>
-            </div>
+        <h3 className="text-lg font-semibold mb-6">Submitted Applications</h3>
+
+        {submissions === undefined ? (
+          <div className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
           </div>
-          <div>
-            <h4 className="font-medium mb-4">Employment</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Employer</span>
-                <span className="font-medium">Tech Corp</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Position</span>
-                <span className="font-medium">Software Engineer</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Income</span>
-                <span className="font-medium">$120,000/year</span>
-              </div>
-            </div>
+        ) : submissions.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="font-medium text-gray-700">No applications sent yet</p>
+            <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+              Your HomeU profile already holds your rental history, employment,
+              and verification info. Complete your application once, then send it
+              to any property in seconds.
+            </p>
+            <Link href="/dashboard/application">
+              <Button className="mt-4">
+                <FileText className="mr-2 h-4 w-4" />
+                Complete My Application
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="mt-6">
-          <Button variant="outline" className="w-full">
-            Edit Profile
-          </Button>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {submissions.map((s: any) => {
+              const status = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.submitted;
+              const StatusIcon = status.icon;
+              const isDirect = s.channel === "pms";
+              return (
+                <div key={s._id} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isDirect ? "bg-emerald-50" : "bg-blue-50"
+                        }`}
+                      >
+                        <Building2
+                          className={`h-6 w-6 ${
+                            isDirect ? "text-emerald-600" : "text-blue-500"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <div className="font-medium">{s.propertyName}</div>
+                        <div className="text-sm text-gray-500">
+                          {s.propertyAddress}
+                          {s.pmCompanyName ? ` · ${s.pmCompanyName}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge className={status.className}>
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {status.label}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      {isDirect ? (
+                        <>
+                          <Zap className="h-3 w-3 text-emerald-600" />
+                          Sent directly to{" "}
+                          {PROVIDER_LABELS[s.provider] ?? s.provider ?? "PMS"}
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-3 w-3 text-blue-500" />
+                          Delivered to property manager by email
+                        </>
+                      )}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {new Date(s.submittedAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    {s.externalApplicationId && (
+                      <>
+                        <span>·</span>
+                        <span>Ref: {s.externalApplicationId}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {s.sectionsIncluded && s.sectionsIncluded.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {s.sectionsIncluded.map((section: string) => (
+                        <Badge
+                          key={section}
+                          variant="outline"
+                          className="text-[10px] text-gray-600"
+                        >
+                          {SECTION_LABELS[section] ?? section}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {s.status === "failed" && s.error && (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded p-2">
+                      {s.error}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
-} 
+}

@@ -15,7 +15,8 @@ import {
   Search,
   Upload,
   UserCheck,
-  FileText
+  FileText,
+  Send
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Rewards', href: '/dashboard/rewards', icon: Gift },
   { name: 'My Application', href: '/dashboard/application', icon: FileText },
+  { name: 'Applications', href: '/dashboard/applications', icon: Send },
   { name: 'Properties', href: '/dashboard/properties', icon: Home },
   { name: 'Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Lease', href: '/dashboard/lease', icon: Upload },

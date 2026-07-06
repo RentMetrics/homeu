@@ -40,6 +40,13 @@ export default function MyApplicationPage() {
   const { verificationStatus } = useVerification();
   const [showSendModal, setShowSendModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Property carried over from the Apply flow (?propertyId=...), so the send
+  // modal can pre-select it. Read on mount to avoid a Suspense boundary.
+  const [applyPropertyId, setApplyPropertyId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("propertyId");
+    if (id) setApplyPropertyId(id);
+  }, []);
 
   const savedApplication = useQuery(
     api.users.getSavedApplication,
@@ -861,6 +868,7 @@ export default function MyApplicationPage() {
         onClose={() => setShowSendModal(false)}
         onSave={saveApplication}
         applicationId={savedApplication?._id}
+        initialPropertyId={applyPropertyId}
       />
     </div>
   );

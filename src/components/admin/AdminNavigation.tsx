@@ -17,6 +17,7 @@ import {
   CreditCard,
   BarChart3,
   Megaphone,
+  Plug,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
@@ -28,6 +29,7 @@ const adminNavigation = [
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Properties', href: '/admin/properties', icon: Building2 },
   { name: 'Property Managers', href: '/admin/property-managers', icon: UserCheck },
+  { name: 'PMS Connections', href: '/admin/pms-connections', icon: Plug },
   { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
   { name: 'Data Management', href: '/admin/data-management', icon: FileSpreadsheet },
 ];
