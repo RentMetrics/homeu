@@ -1,0 +1,27 @@
+[package]
+name = "homeu-pm-scores"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "WASM module for property manager scoring calculations"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+homeu-core = { path = "../homeu-core" }
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+js-sys.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
