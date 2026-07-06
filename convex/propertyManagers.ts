@@ -520,3 +520,56 @@ export const completeOnboarding = mutation({
     return { success: true };
   },
 });
+// Payment collection status for the PM settings page
+export const getPaymentCollectionStatus = query({
+  args: { workosUserId: v.string() },
+  handler: async (ctx, args) => {
+    const pm = await ctx.db
+      .query("propertyManagers")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))
+      .first();
+
+    if (!pm) return null;
+
+    return {
+      isSetup: Boolean(pm.paymentOnboardingComplete),
+      straddleCustomerId: pm.straddleCustomerId ?? null,
+      straddleBankAccountId: pm.straddleBankAccountId ?? null,
+      payoutSchedule: pm.payoutSchedule ?? null,
+      defaultPayoutMethod: pm.defaultPayoutMethod ?? null,
+      paymentOnboardingDate: pm.paymentOnboardingDate ?? null,
+    };
+  },
+});
+
+// Record completed payment collection setup for a PM
+export const setupPaymentCollection = mutation({
+  args: {
+    workosUserId: v.string(),
+    straddleCustomerId: v.string(),
+    straddleBankAccountId: v.string(),
+    payoutSchedule: v.string(),
+    defaultPayoutMethod: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const pm = await ctx.db
+      .query("propertyManagers")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))
+      .first();
+
+    if (!pm) {
+      throw new Error("Property manager not found");
+    }
+
+    await ctx.db.patch(pm._id, {
+      straddleCustomerId: args.straddleCustomerId,
+      straddleBankAccountId: args.straddleBankAccountId,
+      payoutSchedule: args.payoutSchedule,
+      defaultPayoutMethod: args.defaultPayoutMethod,
+      paymentOnboardingComplete: true,
+      paymentOnboardingDate: Date.now(),
+    });
+
+    return { success: true };
+  },
+});

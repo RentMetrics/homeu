@@ -172,6 +172,149 @@ class StraddleAPI {
   async getCustomer(customerId: string): Promise<StraddleCustomer> {
     return this.request<StraddleCustomer>(`/customers/${customerId}`);
   }
+
+  // -------------------------------------------------------------------------
+  // Platform model (organizations / accounts) — used by PM onboarding
+  // -------------------------------------------------------------------------
+
+  async createOrganization(data: {
+    name: string;
+    external_id?: string;
+  }): Promise<StraddleOrganization> {
+    return this.request<StraddleOrganization>('/organizations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createAccount(data: {
+    organization_id: string;
+    account_type: string;
+    access_level: string;
+    business_profile: {
+      name: string;
+      website?: string;
+      phone?: string;
+      address: {
+        line1: string;
+        line2?: string;
+        city: string;
+        state: string;
+        postal_code: string;
+        country: string;
+      };
+    };
+    external_id?: string;
+  }): Promise<StraddleAccount> {
+    return this.request<StraddleAccount>('/accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Sandbox-only: advance an account through review states
+  async simulateAccount(accountId: string, status: string): Promise<unknown> {
+    return this.request<unknown>(`/accounts/${accountId}/simulate`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getAccount(accountId: string): Promise<StraddleAccount> {
+    return this.request<StraddleAccount>(`/accounts/${accountId}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Rent payment helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Split rent payment: one debit from the renter's paykey routed to multiple
+   * recipients (property manager rent + HomeU fee). Executed as one payment
+   * per route; the first route's payment id is the primary reference.
+   */
+  async createSplitRentPayment(data: {
+    fromCustomerId: string;
+    paykey: string;
+    totalAmount: number;
+    routes: Array<{
+      toBusinessCustomerId: string;
+      amount: number;
+      description: string;
+      type: string;
+    }>;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{ id: string; routes: Array<{ id?: string; type: string }> }> {
+    const routePayments: Array<{ id?: string; type: string }> = [];
+
+    for (const route of data.routes) {
+      const payment = await this.createPayment({
+        customerId: data.fromCustomerId,
+        paykey: data.paykey,
+        amount: route.amount,
+        currency: 'USD',
+        description: `${data.description} — ${route.description}`,
+        metadata: {
+          ...data.metadata,
+          routeType: route.type,
+          recipient: route.toBusinessCustomerId,
+        },
+      });
+      routePayments.push({ id: payment.id, type: route.type });
+    }
+
+    return { id: routePayments[0]?.id ?? '', routes: routePayments };
+  }
+
+  /**
+   * Balance check for rent-payment prediction. Returns account status and
+   * whether the customer's linked account can cover the required amount.
+   */
+  async checkBalance(
+    customerId: string,
+    requiredAmount: number
+  ): Promise<{
+    accountStatus: string;
+    hasSufficientFunds: boolean;
+    availableBalance: number;
+  }> {
+    try {
+      const accounts = await this.getBankAccounts(customerId);
+      const active = accounts.find((a) => a.status === 'active') ?? accounts[0];
+      if (!active) {
+        return { accountStatus: 'inactive', hasSufficientFunds: false, availableBalance: 0 };
+      }
+
+      const balance = await this.request<{ available: number; status?: string }>(
+        `/customers/${customerId}/bank-accounts/${active.id}/balance`
+      );
+
+      return {
+        accountStatus: balance.status ?? 'active',
+        hasSufficientFunds: balance.available >= requiredAmount,
+        availableBalance: balance.available,
+      };
+    } catch {
+      // Balance data unavailable — report as an account error so callers
+      // treat the prediction as uncertain rather than a confident yes/no
+      return { accountStatus: 'error', hasSufficientFunds: false, availableBalance: 0 };
+    }
+  }
+}
+
+interface StraddleOrganization {
+  id: string;
+  name: string;
+}
+
+interface StraddleAccount {
+  id: string;
+  organization_id: string;
+  status: string;
+  business_profile?: { name?: string };
+  capabilities?: unknown;
+  settings?: unknown;
 }
 
 // Export singleton instance
@@ -183,4 +326,6 @@ export type {
   StraddleBankAccount,
   StraddlePayment,
   StraddleVerificationResult,
-}; 
+  StraddleOrganization,
+  StraddleAccount,
+};

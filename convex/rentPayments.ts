@@ -90,6 +90,8 @@ export const initiateRentPayment = mutation({
 
       feeBreakdown: {
         operationsFee: HOMEU_OPERATIONS_FEE,
+        rewardsFunding: HOMEU_REWARDS_FUNDING,
+        creditReportingFee: HOMEU_CREDIT_REPORTING_FEE,
         pointsConversion: HOMEU_POINTS_CONVERSION,
         pointsAwarded: POINTS_PER_DOLLAR * HOMEU_POINTS_CONVERSION,
       },
@@ -190,7 +192,7 @@ export const processPaymentCompletion = mutation({
     }
 
     // 3. Early payment bonus: 25 points if 5+ days early
-    if (payment.daysEarly >= 5) {
+    if ((payment.daysEarly ?? 0) >= 5) {
       totalPoints += 25;
     }
 
@@ -209,10 +211,12 @@ export const processPaymentCompletion = mutation({
     });
 
     // Update statement
-    const statement = await ctx.db.get(payment.statementId);
-    if (statement) {
-      const newAmountPaid = statement.amountPaid + payment.totalAmount;
-      const newPaymentIds = [...statement.paymentIds, args.rentPaymentId.toString()];
+    const statement = payment.statementId
+      ? await ctx.db.get(payment.statementId)
+      : null;
+    if (statement && payment.statementId) {
+      const newAmountPaid = (statement.amountPaid ?? 0) + payment.totalAmount;
+      const newPaymentIds = [...(statement.paymentIds ?? []), args.rentPaymentId.toString()];
       const newStatus = newAmountPaid >= statement.totalDue ? "paid" : "partial";
 
       await ctx.db.patch(payment.statementId, {
@@ -246,7 +250,7 @@ export const processPaymentCompletion = mutation({
       breakdown: {
         feeConversion: feePoints,
         onTimeBonus: payment.isOnTime ? 100 : 0,
-        earlyBonus: payment.daysEarly >= 5 ? 25 : 0,
+        earlyBonus: (payment.daysEarly ?? 0) >= 5 ? 25 : 0,
         autoPayBonus: payment.isAutoPay ? 25 : 0,
       },
     };
@@ -304,8 +308,9 @@ export const awardPaymentPoints = mutation({
     }
 
     // Award points
-    const newBalance = userPoints.currentBalance + payment.totalPointsEarned;
-    const newTotalEarned = userPoints.totalEarned + payment.totalPointsEarned;
+    const pointsEarned = payment.totalPointsEarned ?? 0;
+    const newBalance = userPoints.currentBalance + pointsEarned;
+    const newTotalEarned = userPoints.totalEarned + pointsEarned;
 
     // Determine tier
     let tier = "bronze";
@@ -318,12 +323,12 @@ export const awardPaymentPoints = mutation({
       userId: payment.renterId,
       type: "earn",
       category: "rent",
-      amount: payment.totalPointsEarned,
+      amount: pointsEarned,
       balance: newBalance,
-      description: `Rent payment - ${payment.feeBreakdown.pointsAwarded} (fee) + ${payment.isOnTime ? "100 (on-time)" : "0"} + ${payment.daysEarly >= 5 ? "25 (early)" : "0"} + ${payment.isAutoPay ? "25 (auto-pay)" : "0"}`,
+      description: `Rent payment - ${payment.feeBreakdown.pointsAwarded} (fee) + ${payment.isOnTime ? "100 (on-time)" : "0"} + ${(payment.daysEarly ?? 0) >= 5 ? "25 (early)" : "0"} + ${payment.isAutoPay ? "25 (auto-pay)" : "0"}`,
       metadata: {
         rentPaymentId: args.rentPaymentId.toString(),
-        earlyPaymentDays: payment.daysEarly > 0 ? payment.daysEarly : undefined,
+        earlyPaymentDays: payment.daysEarly && payment.daysEarly > 0 ? payment.daysEarly : undefined,
       },
       awardcoSynced: false,
       status: "completed",
@@ -409,7 +414,9 @@ export const getPaymentWithFeeBreakdown = query({
     const payment = await ctx.db.get(args.rentPaymentId);
     if (!payment) return null;
 
-    const statement = await ctx.db.get(payment.statementId);
+    const statement = payment.statementId
+      ? await ctx.db.get(payment.statementId)
+      : null;
 
     return {
       ...payment,
@@ -437,7 +444,7 @@ export const getPaymentWithFeeBreakdown = query({
       pointsBreakdown: {
         feeConversion: payment.feeBreakdown.pointsAwarded,
         onTimeBonus: payment.isOnTime ? 100 : 0,
-        earlyBonus: payment.daysEarly >= 5 ? 25 : 0,
+        earlyBonus: (payment.daysEarly ?? 0) >= 5 ? 25 : 0,
         autoPayBonus: payment.isAutoPay ? 25 : 0,
         total: payment.totalPointsEarned,
       },
@@ -554,7 +561,7 @@ export const getRenterPaymentStats = query({
       .first();
 
     const totalPaid = payments.reduce((sum, p) => sum + p.totalAmount, 0);
-    const totalPointsEarned = payments.reduce((sum, p) => sum + p.totalPointsEarned, 0);
+    const totalPointsEarned = payments.reduce((sum, p) => sum + (p.totalPointsEarned ?? 0), 0);
     const onTimePayments = payments.filter((p) => p.isOnTime).length;
 
     return {

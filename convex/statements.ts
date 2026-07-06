@@ -123,6 +123,7 @@ export const generateMonthlyStatement = mutation({
       statementNumber,
       lineItems,
       subtotal,
+      homeuPlatformFee: HOMEU_PLATFORM_FEE,
       homeuConvenienceFee: HOMEU_CONVENIENCE_FEE,
       totalDue,
       status: "draft",
@@ -130,7 +131,6 @@ export const generateMonthlyStatement = mutation({
       paymentIds: [],
       amountPaid: 0,
       remindersSent: 0,
-      createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
@@ -379,8 +379,8 @@ export const recordPaymentOnStatement = mutation({
       return { success: false, message: "Statement not found" };
     }
 
-    const newAmountPaid = statement.amountPaid + args.amount;
-    const newPaymentIds = [...statement.paymentIds, args.paymentId];
+    const newAmountPaid = (statement.amountPaid ?? 0) + args.amount;
+    const newPaymentIds = [...(statement.paymentIds ?? []), args.paymentId];
 
     // Determine new status
     let newStatus = statement.status;
@@ -448,7 +448,7 @@ export const getPropertyManagerStatements = query({
       paid: statements.filter((s) => s.status === "paid").length,
       overdue: statements.filter((s) => s.status === "overdue").length,
       totalDue: statements.reduce((sum, s) => sum + s.totalDue, 0),
-      totalCollected: statements.reduce((sum, s) => sum + s.amountPaid, 0),
+      totalCollected: statements.reduce((sum, s) => sum + (s.amountPaid ?? 0), 0),
     };
 
     return {
@@ -557,6 +557,7 @@ export const bulkGenerateStatements = mutation({
         statementNumber,
         lineItems,
         subtotal,
+        homeuPlatformFee: HOMEU_PLATFORM_FEE,
         homeuConvenienceFee: HOMEU_CONVENIENCE_FEE,
         totalDue,
         status: "draft",
@@ -564,7 +565,6 @@ export const bulkGenerateStatements = mutation({
         paymentIds: [],
         amountPaid: 0,
         remindersSent: 0,
-        createdAt: Date.now(),
         updatedAt: Date.now(),
       });
 

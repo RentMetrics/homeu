@@ -2,6 +2,25 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 
+// Response shapes for the Straddle API fields used in this file
+interface StraddleCustomerResponse {
+  id: string;
+}
+
+interface StraddleVerificationResponse {
+  status: string;
+}
+
+interface StraddleBankConnectionResponse {
+  connectionUrl: string;
+  connectionId: string;
+}
+
+interface StraddlePaymentResponse {
+  id: string;
+  status: string;
+}
+
 // Straddle API client for Convex
 class StraddleAPI {
   private baseUrl: string;
@@ -44,14 +63,14 @@ class StraddleAPI {
   }
 
   async createCustomer(customerData: any) {
-    return this.request('/customers', {
+    return this.request<StraddleCustomerResponse>('/customers', {
       method: 'POST',
       body: JSON.stringify(customerData),
     });
   }
 
   async getCustomerVerification(customerId: string) {
-    return this.request(`/customers/${customerId}/verification`);
+    return this.request<StraddleVerificationResponse>(`/customers/${customerId}/verification`);
   }
 
   async submitVerificationDocuments(customerId: string, documents: any) {
@@ -62,7 +81,7 @@ class StraddleAPI {
   }
 
   async createBankConnection(customerId: string) {
-    return this.request(`/customers/${customerId}/bank-connections`, {
+    return this.request<StraddleBankConnectionResponse>(`/customers/${customerId}/bank-connections`, {
       method: 'POST',
       body: JSON.stringify({
         returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payments?success=true`,
@@ -76,14 +95,14 @@ class StraddleAPI {
   }
 
   async createPayment(paymentData: any) {
-    return this.request('/payments', {
+    return this.request<StraddlePaymentResponse>('/payments', {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
   }
 
   async getPayment(paymentId: string) {
-    return this.request(`/payments/${paymentId}`);
+    return this.request<StraddlePaymentResponse>(`/payments/${paymentId}`);
   }
 }
 
@@ -133,12 +152,12 @@ export const createStraddleCustomer = mutation({
         phone: args.phone,
       });
 
-      straddleCustomerId = (customer as any).id;
+      straddleCustomerId = customer.id;
 
       // Update or create renter record
       if (existingRenter) {
         await ctx.db.patch(existingRenter._id, {
-          straddleCustomerId: (customer as any).id,
+          straddleCustomerId: customer.id,
           firstName: args.firstName,
           lastName: args.lastName,
           phoneNumber: args.phone,
@@ -163,7 +182,7 @@ export const createStraddleCustomer = mutation({
           employer: "",
           position: "",
           income: 0,
-          straddleCustomerId: (customer as any).id,
+          straddleCustomerId: customer.id,
           verified: false,
         });
       }
@@ -182,7 +201,7 @@ export const createStraddleCustomer = mutation({
       await ctx.db.patch(existingRenter._id, {
         verified: verification.status === 'approved',
         verificationStatus: verification.status,
-        verificationDate: verification.status === 'approved' ? Date.now() : null,
+        verificationDate: verification.status === 'approved' ? Date.now() : undefined,
       });
     }
 
