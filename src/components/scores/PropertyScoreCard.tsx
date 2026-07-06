@@ -29,6 +29,80 @@ interface ScoreState {
   loading: boolean;
 }
 
+interface MarketContext {
+  property: {
+    googleRating?: number | null;
+    amenities?: string[] | null;
+    yearBuilt: number;
+    averageUnitSize: number;
+  };
+  propertyRent?: { averageRent: number; rentPerSqFt: number } | null;
+  propertyOccupancy?: { occupancyRate: number } | null;
+  propertyConcession?: { concessionAmount: number } | null;
+  marketStats?: {
+    avgRent: number;
+    avgRentPerSqFt: number;
+    avgOccupancy: number;
+    rentTrend3mo: number;
+    rentTrend12mo: number;
+  } | null;
+}
+
+function buildDesirabilityInput(context: MarketContext) {
+  const { property, propertyRent, propertyOccupancy, propertyConcession, marketStats } = context;
+
+  const dataBacked: string[] = [];
+  const estimated: string[] = [];
+  const track = <T,>(label: string, real: T | undefined | null, fallback: T): T => {
+    if (real !== undefined && real !== null) {
+      dataBacked.push(label);
+      return real;
+    }
+    estimated.push(label);
+    return fallback;
+  };
+
+  const currentRent = track(
+    "Property rent",
+    propertyRent?.averageRent,
+    marketStats?.avgRent ?? 1800
+  );
+  const marketRent = track("Market rent", marketStats?.avgRent, currentRent);
+  const unitSqft = property.averageUnitSize || 900;
+  const pricePerSqft = track(
+    "Price per sqft",
+    propertyRent?.rentPerSqFt,
+    unitSqft > 0 ? currentRent / unitSqft : 2
+  );
+
+  const input: DesirabilityInput = {
+    current_rent: currentRent,
+    market_rent: marketRent,
+    occupancy_rate: track(
+      "Occupancy",
+      propertyOccupancy?.occupancyRate,
+      marketStats?.avgOccupancy ?? 90
+    ),
+    rent_trend_3mo: track("3-month rent trend", marketStats?.rentTrend3mo, 0),
+    rent_trend_12mo: track("12-month rent trend", marketStats?.rentTrend12mo, 0),
+    google_rating: property.googleRating ?? undefined,
+    amenity_count: property.amenities?.length ?? 0,
+    building_year: property.yearBuilt,
+    unit_sqft: unitSqft,
+    price_per_sqft: pricePerSqft,
+    market_price_per_sqft: track(
+      "Market price per sqft",
+      marketStats?.avgRentPerSqFt,
+      pricePerSqft
+    ),
+    has_concessions: Boolean(propertyConcession),
+    concession_value: propertyConcession?.concessionAmount ?? 0,
+  };
+  if (property.googleRating) dataBacked.push("Google rating");
+
+  return { input, dataBacked, estimated };
+}
+
 export function usePropertyDesirability(propertyId: string | undefined): ScoreState {
   const context = useQuery(
     api.multifamilyproperties.getPropertyWithMarketContext,
@@ -40,58 +114,7 @@ export function usePropertyDesirability(propertyId: string | undefined): ScoreSt
 
   const built = useMemo(() => {
     if (!context?.property) return null;
-    const { property, propertyRent, propertyOccupancy, propertyConcession, marketStats } = context;
-
-    const dataBacked: string[] = [];
-    const estimated: string[] = [];
-    const track = <T,>(label: string, real: T | undefined | null, fallback: T): T => {
-      if (real !== undefined && real !== null) {
-        dataBacked.push(label);
-        return real;
-      }
-      estimated.push(label);
-      return fallback;
-    };
-
-    const currentRent = track(
-      "Property rent",
-      propertyRent?.averageRent,
-      marketStats?.avgRent ?? 1800
-    );
-    const marketRent = track("Market rent", marketStats?.avgRent, currentRent);
-    const unitSqft = property.averageUnitSize || 900;
-    const pricePerSqft = track(
-      "Price per sqft",
-      propertyRent?.rentPerSqFt,
-      unitSqft > 0 ? currentRent / unitSqft : 2
-    );
-
-    const input: DesirabilityInput = {
-      current_rent: currentRent,
-      market_rent: marketRent,
-      occupancy_rate: track(
-        "Occupancy",
-        propertyOccupancy?.occupancyRate,
-        marketStats?.avgOccupancy ?? 90
-      ),
-      rent_trend_3mo: track("3-month rent trend", marketStats?.rentTrend3mo, 0),
-      rent_trend_12mo: track("12-month rent trend", marketStats?.rentTrend12mo, 0),
-      google_rating: property.googleRating ?? undefined,
-      amenity_count: property.amenities?.length ?? 0,
-      building_year: property.yearBuilt,
-      unit_sqft: unitSqft,
-      price_per_sqft: pricePerSqft,
-      market_price_per_sqft: track(
-        "Market price per sqft",
-        marketStats?.avgRentPerSqFt,
-        pricePerSqft
-      ),
-      has_concessions: Boolean(propertyConcession),
-      concession_value: propertyConcession?.concessionAmount ?? 0,
-    };
-    if (property.googleRating) dataBacked.push("Google rating");
-
-    return { input, dataBacked, estimated };
+    return buildDesirabilityInput(context);
   }, [context]);
 
   useEffect(() => {
@@ -117,6 +140,89 @@ export function usePropertyDesirability(propertyId: string | undefined): ScoreSt
     estimated: built?.estimated ?? [],
     loading: loading || context === undefined,
   };
+}
+
+/**
+ * Batch scores for property list pages — one Convex round trip for all
+ * visible cards, then one WASM pass. Returns propertyId → result.
+ */
+export function usePropertyDesirabilityScores(
+  propertyIds: string[]
+): { scores: Record<string, DesirabilityResult>; loading: boolean } {
+  const idsKey = propertyIds.slice(0, 60).join(",");
+  const ids = useMemo(() => (idsKey ? idsKey.split(",") : []), [idsKey]);
+
+  const contexts = useQuery(
+    api.multifamilyproperties.getMarketContextBatch,
+    ids.length > 0 ? { propertyIds: ids } : "skip"
+  );
+
+  const [scores, setScores] = useState<Record<string, DesirabilityResult>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!contexts) return;
+    setLoading(true);
+
+    Promise.all(
+      contexts.map(async (context: any) => {
+        try {
+          const { input } = buildDesirabilityInput(context);
+          const result = await calculateDesirability(input);
+          return [context.property.propertyId as string, result] as const;
+        } catch {
+          return null;
+        }
+      })
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setScores(Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e !== null)));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contexts]);
+
+  return { scores, loading: loading || contexts === undefined };
+}
+
+const chipTextStyles: Record<ScoreGrade, string> = {
+  Excellent: "text-green-600",
+  Good: "text-blue-600",
+  Fair: "text-yellow-600",
+  Poor: "text-orange-600",
+  VeryPoor: "text-red-600",
+};
+
+/** Compact score for list cards: score number + grade label */
+export function PropertyScoreChip({ result }: { result: DesirabilityResult | undefined }) {
+  if (!result) {
+    return (
+      <div className="flex flex-col items-end">
+        <span className="text-lg font-bold text-gray-300">—</span>
+        <span className="text-sm text-gray-400">Scoring...</span>
+      </div>
+    );
+  }
+
+  const color = chipTextStyles[result.grade] ?? chipTextStyles.Fair;
+  return (
+    <div className="flex flex-col items-end">
+      <div className="flex items-center gap-1">
+        <Home className={`h-5 w-5 ${color}`} />
+        <span className={`text-lg font-bold ${color}`}>{Math.round(result.score)}</span>
+      </div>
+      <span className="text-sm text-gray-500">
+        {result.grade === "VeryPoor" ? "Very Poor" : result.grade}
+      </span>
+    </div>
+  );
 }
 
 const gradeStyles: Record<ScoreGrade, string> = {

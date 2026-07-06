@@ -781,3 +781,69 @@ export const createProperty = mutation({
     return { id, propertyId };
   },
 });
+
+// Batch market context for property list cards — one round trip for all
+// visible cards so each can show the live desirability score without
+// issuing per-card queries.
+export const getMarketContextBatch = query({
+  args: { propertyIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const ids = args.propertyIds.slice(0, 60);
+
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // Dedupe marketStats lookups across cards in the same city/state
+    const statsCache = new Map<string, any>();
+
+    const results = await Promise.all(
+      ids.map(async (propertyId) => {
+        const property = await ctx.db
+          .query("multifamilyproperties")
+          .withIndex("by_propertyId", (q) => q.eq("propertyId", propertyId))
+          .first();
+        if (!property) return null;
+
+        const [propertyRent, propertyOccupancy, propertyConcession] = await Promise.all([
+          ctx.db
+            .query("rentData")
+            .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+            .order("desc")
+            .first(),
+          ctx.db
+            .query("occupancyData")
+            .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+            .order("desc")
+            .first(),
+          ctx.db
+            .query("concessionData")
+            .withIndex("by_propertyId_month", (q) => q.eq("propertyId", propertyId))
+            .order("desc")
+            .first(),
+        ]);
+
+        const cacheKey = `${property.city}|${property.state}`;
+        let marketStats = statsCache.get(cacheKey);
+        if (marketStats === undefined) {
+          marketStats =
+            (await ctx.db
+              .query("marketStats")
+              .withIndex("by_city_state_month", (q) =>
+                q.eq("city", property.city).eq("state", property.state).eq("month", currentMonth)
+              )
+              .first()) ??
+            (await ctx.db
+              .query("marketStats")
+              .withIndex("by_city_state_month", (q) =>
+                q.eq("city", "__STATE__").eq("state", property.state).eq("month", currentMonth)
+              )
+              .first());
+          statsCache.set(cacheKey, marketStats ?? null);
+        }
+
+        return { property, propertyRent, propertyOccupancy, propertyConcession, marketStats };
+      })
+    );
+
+    return results.filter((r): r is NonNullable<typeof r> => r !== null);
+  },
+});

@@ -25,6 +25,7 @@ import { api } from '@convex/_generated/api';
 import Link from "next/link";
 import { useUserSync } from '@/hooks/useUserSync';
 import { DealScoreBadge } from '@/components/market/DealScoreBadge';
+import { PropertyScoreChip, usePropertyDesirabilityScores } from '@/components/scores/PropertyScoreCard';
 import { LeverageBadge } from '@/components/market/LeverageBadge';
 
 // Force dynamic rendering to prevent SSR issues with Convex
@@ -33,21 +34,7 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 12;
 
 // Helper function to get score color
-const getScoreColor = (score: number) => {
-  if (score >= 90) return 'text-green-600';
-  if (score >= 80) return 'text-blue-600';
-  if (score >= 70) return 'text-yellow-600';
-  return 'text-gray-600';
-};
-
 // Helper function to get score rating
-const getScoreRating = (score: number) => {
-  if (score >= 90) return 'Excellent';
-  if (score >= 80) return 'Great';
-  if (score >= 70) return 'Good';
-  return 'Fair';
-};
-
 // Title-case a string: "salt lake city" → "Salt Lake City"
 const titleCase = (str: string) =>
   str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -303,6 +290,8 @@ export default function PropertiesPage() {
     () => filteredProperties.map((p: any) => p.propertyId).filter(Boolean),
     [filteredProperties]
   );
+  // Live desirability scores for visible cards (batched; replaces stale homeuScore)
+  const { scores: liveScores } = usePropertyDesirabilityScores(filteredPropertyIds);
   const uploadedImagesArr = useQuery(
     api.propertyImages.getPrimaryImagesForProperties,
     filteredPropertyIds.length > 0 ? { propertyIds: filteredPropertyIds } : "skip"
@@ -437,17 +426,7 @@ export default function PropertiesPage() {
                       {property.city || 'Unknown City'}, {property.state || 'Unknown State'}
                     </CardDescription>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-1">
-                      <Star className={`h-5 w-5 ${getScoreColor(property.homeuScore || 0)}`} />
-                      <span className={`text-lg font-bold ${getScoreColor(property.homeuScore || 0)}`}>
-                        {property.homeuScore || 'N/A'}
-                      </span>
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      {property.homeuScore ? getScoreRating(property.homeuScore) : 'Not rated'}
-                    </span>
-                  </div>
+                  <PropertyScoreChip result={liveScores[property.propertyId]} />
                 </div>
               </CardHeader>
               <CardContent>

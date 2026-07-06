@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { DealScoreBadge } from '@/components/market/DealScoreBadge';
+import { PropertyScoreChip, usePropertyDesirabilityScores } from '@/components/scores/PropertyScoreCard';
 import { LeverageBadge } from '@/components/market/LeverageBadge';
 
 // Helper function to calculate profile completeness
@@ -134,6 +135,8 @@ export default function DashboardPage() {
     () => displayProperties.map((p: any) => p.propertyId).filter(Boolean),
     [displayProperties]
   );
+  // Live desirability scores for the six featured cards (replaces stale homeuScore)
+  const { scores: liveScores } = usePropertyDesirabilityScores(displayPropertyIds.slice(0, 6));
   const uploadedImagesArr = useQuery(
     api.propertyImages.getPrimaryImagesForProperties,
     displayPropertyIds.length > 0 ? { propertyIds: displayPropertyIds } : "skip"
@@ -334,7 +337,7 @@ export default function DashboardPage() {
                 ? `/api/places-photo?query=${encodeURIComponent(`${property.propertyName} apartments ${property.city} ${property.state}`)}&maxwidth=600`
                 : null;
               const imgSrc = uploadedImg || googleImg;
-              const score = property.homeuScore;
+              const liveScore = liveScores[property.propertyId];
 
               return (
                 <Link
@@ -365,11 +368,11 @@ export default function DashboardPage() {
                         <span className="text-yellow-500">★</span> {property.googleRating}
                       </div>
                     )}
-                    {score && score > 0 && (
+                    {liveScore && (
                       <div className={`absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-bold ${
-                        score >= 80 ? 'bg-green-500 text-white' : score >= 60 ? 'bg-blue-500 text-white' : 'bg-gray-500 text-white'
+                        liveScore.score >= 80 ? 'bg-green-500 text-white' : liveScore.score >= 60 ? 'bg-blue-500 text-white' : 'bg-gray-500 text-white'
                       }`}>
-                        {score}
+                        {Math.round(liveScore.score)}
                       </div>
                     )}
                   </div>
