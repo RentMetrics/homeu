@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { tryResolveUserId, requireAdmin } from "./lib/auth";
 
 // Constants
 export const HOMEU_PLATFORM_FEE = 9.99;
@@ -44,6 +45,7 @@ export const generateMonthlyStatement = mutation({
     dueDate: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Check if statement already exists for this month
     const existing = await ctx.db
       .query("monthlyStatements")
@@ -151,6 +153,7 @@ export const sendStatement = mutation({
     statementId: v.id("monthlyStatements"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const statement = await ctx.db.get(args.statementId);
     if (!statement) {
       return { success: false, message: "Statement not found" };
@@ -176,6 +179,7 @@ export const addLateFee = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const statement = await ctx.db.get(args.statementId);
     if (!statement) {
       return { success: false, message: "Statement not found" };
@@ -216,15 +220,17 @@ export const addLateFee = mutation({
  * Get the current statement for a renter
  */
 export const getCurrentStatement = query({
-  args: { renterId: v.string() },
+  args: { renterId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return null;
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const statement = await ctx.db
       .query("monthlyStatements")
       .withIndex("by_renterId_month", (q) =>
-        q.eq("renterId", args.renterId).eq("month", currentMonth)
+        q.eq("renterId", renterId).eq("month", currentMonth)
       )
       .first();
 
@@ -250,14 +256,16 @@ export const getCurrentStatement = query({
  */
 export const getRenterStatements = query({
   args: {
-    renterId: v.string(),
+    renterId: v.optional(v.string()),
     limit: v.optional(v.number()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return [];
     let query = ctx.db
       .query("monthlyStatements")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .order("desc");
 
     const statements = await query.take(args.limit || 12);
@@ -275,10 +283,12 @@ export const getRenterStatements = query({
  * Get a specific statement by ID
  */
 export const getStatementById = query({
-  args: { statementId: v.id("monthlyStatements") },
+  args: { statementId: v.id("monthlyStatements"), serverKey: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const statement = await ctx.db.get(args.statementId);
     if (!statement) return null;
+    // Owner, admin, or the app's server only.
+    if (!(await tryResolveUserId(ctx, statement.renterId, args.serverKey))) return null;
 
     // Get associated payments
     const payments = await ctx.db
@@ -304,11 +314,13 @@ export const getStatementById = query({
  * Get unpaid statements for a renter
  */
 export const getUnpaidStatements = query({
-  args: { renterId: v.string() },
+  args: { renterId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return [];
     const statements = await ctx.db
       .query("monthlyStatements")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "sent"),
@@ -328,6 +340,7 @@ export const getUnpaidStatements = query({
 export const getOverdueStatements = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const now = Date.now();
 
     const overdueStatements = await ctx.db
@@ -352,6 +365,7 @@ export const markStatementViewed = mutation({
   handler: async (ctx, args) => {
     const statement = await ctx.db.get(args.statementId);
     if (!statement) return { success: false };
+    if (!(await tryResolveUserId(ctx, statement.renterId))) return { success: false };
 
     if (!statement.viewedAt) {
       await ctx.db.patch(args.statementId, {
@@ -374,6 +388,7 @@ export const recordPaymentOnStatement = mutation({
     amount: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const statement = await ctx.db.get(args.statementId);
     if (!statement) {
       return { success: false, message: "Statement not found" };
@@ -421,6 +436,7 @@ export const getPropertyManagerStatements = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let query = ctx.db
       .query("monthlyStatements")
       .withIndex("by_propertyManagerId", (q) =>
@@ -470,6 +486,7 @@ export const bulkGenerateStatements = mutation({
     dueDay: v.number(), // Day of month for due date
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get all active rent routing for this property
     const rentRouting = await ctx.db
       .query("rentPaymentRouting")

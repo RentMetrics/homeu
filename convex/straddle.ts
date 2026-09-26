@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
+import { resolveUserId, tryResolveUserId } from "./lib/auth";
 
 // Response shapes for the Straddle API fields used in this file
 interface StraddleCustomerResponse {
@@ -109,7 +110,7 @@ class StraddleAPI {
 // Create Straddle customer and submit verification
 export const createStraddleCustomer = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     email: v.string(),
     firstName: v.string(),
     lastName: v.string(),
@@ -130,12 +131,13 @@ export const createStraddleCustomer = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const straddleAPI = new StraddleAPI();
 
     // Check if user already exists
     const existingRenter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     let straddleCustomerId = existingRenter?.straddleCustomerId;
@@ -169,7 +171,7 @@ export const createStraddleCustomer = mutation({
         });
       } else {
         await ctx.db.insert("renters", {
-          userId: args.userId,
+          userId: userId,
           email: args.email,
           firstName: args.firstName,
           lastName: args.lastName,
@@ -215,11 +217,13 @@ export const createStraddleCustomer = mutation({
 
 // Get verification status
 export const getVerificationStatus = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return { error: 'Not authorized' };
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter?.straddleCustomerId) {
@@ -246,11 +250,12 @@ export const getVerificationStatus = query({
 
 // Create bank connection
 export const createBankConnection = mutation({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter?.straddleCustomerId) {
@@ -270,11 +275,13 @@ export const createBankConnection = mutation({
 
 // Get bank accounts
 export const getBankAccounts = query({
-  args: { userId: v.string() },
+  args: { serverKey: v.optional(v.string()), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId, args.serverKey);
+    if (!userId) return { error: 'Not authorized' };
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter?.straddleCustomerId) {
@@ -295,7 +302,7 @@ export const getBankAccounts = query({
 // Create payment
 export const createPayment = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     amount: v.number(),
     currency: v.string(),
     description: v.string(),
@@ -304,9 +311,10 @@ export const createPayment = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter?.straddleCustomerId) {
@@ -325,14 +333,14 @@ export const createPayment = mutation({
       metadata: {
         ...args.metadata,
         propertyId: args.propertyId,
-        userId: args.userId,
+        userId: userId,
         paymentType: 'rent'
       }
     });
 
     // Create local payment record
     const payment = await ctx.db.insert("payments", {
-      userId: args.userId,
+      userId: userId,
       propertyId: args.propertyId,
       amount: args.amount,
       currency: args.currency,
@@ -366,6 +374,7 @@ export const createPayment = mutation({
 export const getPaymentStatus = query({
   args: { paymentId: v.string() },
   handler: async (ctx, args) => {
+    if (!(await tryResolveUserId(ctx))) return { error: 'Not authorized' };
     try {
       const straddleAPI = new StraddleAPI();
       const payment = await straddleAPI.getPayment(args.paymentId);
@@ -379,11 +388,13 @@ export const getPaymentStatus = query({
 
 // Get user payments
 export const getUserPayments = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return { payments: [] };
     const payments = await ctx.db
       .query("payments")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
 

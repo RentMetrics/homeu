@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./lib/auth";
 
 // Query to get all properties
 export const get = query({
@@ -54,6 +55,7 @@ export const add = mutation({
     scoreFactors: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyId = await ctx.db.insert("properties", args);
     return propertyId;
   },

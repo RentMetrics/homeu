@@ -1,11 +1,13 @@
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { requireUserId, resolveUserId, tryResolveUserId } from "./lib/auth";
 
 // 1. Generate an upload URL for the client to upload the lease file
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireUserId(ctx);
     return { url: await ctx.storage.generateUploadUrl() };
   },
 });
@@ -13,15 +15,16 @@ export const generateUploadUrl = mutation({
 // 2. Save lease metadata after file upload
 export const saveLeaseMetadata = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     fileId: v.string(),
     fileName: v.string(),
     fileType: v.string(),
     uploadedAt: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const leaseId = await ctx.db.insert("leases", {
-      userId: args.userId,
+      userId,
       fileId: args.fileId,
       fileName: args.fileName,
       fileType: args.fileType,
@@ -34,11 +37,13 @@ export const saveLeaseMetadata = mutation({
 
 // 3. Get all leases for a user
 export const getLeasesByUser = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     return await ctx.db
       .query("leases")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
   },
 });
@@ -63,7 +68,7 @@ export const processLeaseWithGemini = action({
     const mockRentalAmount = "$1,750/month";
 
     // 4. Update the lease record with extracted data
-    await ctx.runMutation(api.leases.updateLeaseWithHighlights, {
+    await ctx.runMutation(internal.leases.updateLeaseWithHighlights, {
       leaseId: args.leaseId,
       abstract: mockAbstract,
       term: mockTerm,
@@ -78,11 +83,15 @@ export const processLeaseWithGemini = action({
 export const getLeaseById = query({
   args: { leaseId: v.id("leases") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.leaseId);
+    const lease = await ctx.db.get(args.leaseId);
+    if (!lease) return null;
+    // Owner or admin only (identity propagates from processLeaseWithGemini).
+    if (!(await tryResolveUserId(ctx, lease.userId))) return null;
+    return lease;
   },
 });
 
-export const updateLeaseWithHighlights = mutation({
+export const updateLeaseWithHighlights = internalMutation({
   args: {
     leaseId: v.id("leases"),
     abstract: v.string(),

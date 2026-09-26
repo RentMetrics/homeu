@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
 
 // Function to enrich a single property with Google Places data
 export const enrichPropertyWithGoogleData = action({
@@ -7,6 +8,7 @@ export const enrichPropertyWithGoogleData = action({
     propertyId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get the property from the database
     const property = await ctx.runQuery("multifamilyproperties:getPropertyById" as any, {
       propertyId: args.propertyId,
@@ -130,6 +132,7 @@ export const enrichPropertiesByLocation = action({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { city, state, limit = 50 } = args;
     
     console.log(`Starting enrichment for ${city}, ${state} (limit: ${limit})`);
@@ -253,6 +256,7 @@ export const testGooglePlacesSearch = action({
     propertyId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get the property from the database
     const property = await ctx.runQuery("multifamilyproperties:getPropertyById" as any, {
       propertyId: args.propertyId,
@@ -303,6 +307,7 @@ export const testGooglePlacesSearch = action({
 export const testGooglePlacesAPI = action({
   args: {},
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     try {
       // Test with a known property that should exist in Google Places
       const testQueries = [
@@ -391,6 +396,7 @@ export const enrichAllMarkets = action({
     delayBetweenBatches: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { batchSize = 5, delayBetweenBatches = 1000 } = args;
     
     console.log(`Starting automated enrichment for all markets (batch size: ${batchSize}, delay: ${delayBetweenBatches}ms)`);

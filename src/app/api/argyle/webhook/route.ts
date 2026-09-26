@@ -17,6 +17,8 @@ import { api } from '../../../../../convex/_generated/api';
 import type { ArgyleWebhookEvent } from '@/lib/argyle';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 export async function POST(req: Request) {
   try {
@@ -24,8 +26,10 @@ export async function POST(req: Request) {
     const signature = req.headers.get('x-argyle-signature') || '';
     const webhookSecret = process.env.ARGYLE_WEBHOOK_SECRET;
 
-    // Validate webhook signature (skip in development if secret not set)
-    if (webhookSecret && !validateWebhookSignature(payload, signature, webhookSecret)) {
+    // Validate webhook signature (skip only in local dev without a secret;
+    // this route writes verified employment/income via CONVEX_SERVER_KEY).
+    if ((webhookSecret || process.env.NODE_ENV === 'production') &&
+        (!webhookSecret || !validateWebhookSignature(payload, signature, webhookSecret))) {
       console.error('Invalid Argyle webhook signature');
       return NextResponse.json(
         { error: 'Invalid signature' },
@@ -40,7 +44,7 @@ export async function POST(req: Request) {
 
     // Find the HomeU user by Argyle user ID
     const renter = await convex.query(api.argyle.getRenterByArgyleUserId, {
-      argyleUserId,
+      serverKey: CONVEX_SERVER_KEY, argyleUserId,
     });
 
     if (!renter) {
@@ -107,7 +111,7 @@ async function handleAccountConnected(
   try {
     // Store the account ID
     await convex.mutation(api.argyle.updateArgyleAccountId, {
-      userId,
+      serverKey: CONVEX_SERVER_KEY, userId,
       argyleAccountId,
     });
 
@@ -165,7 +169,7 @@ async function handleAccountSynced(
 
     // Update verified employment in Convex
     await convex.mutation(api.argyle.updateVerifiedEmployment, {
-      userId,
+      serverKey: CONVEX_SERVER_KEY, userId,
       argyleAccountId,
       employerName,
       position: currentEmployment.job_title,
@@ -185,7 +189,7 @@ async function handleAccountSynced(
       }
 
       await convex.mutation(api.argyle.upsertEmploymentHistory, {
-        userId,
+        serverKey: CONVEX_SERVER_KEY, userId,
         argyleUserId,
         argyleEmploymentId: employment.id,
         employerName: empEmployerName,
@@ -211,7 +215,7 @@ async function handleAccountSynced(
 async function handleAccountRemoved(userId: string, argyleAccountId: string) {
   try {
     await convex.mutation(api.argyle.handleAccountRemoved, {
-      userId,
+      serverKey: CONVEX_SERVER_KEY, userId,
       argyleAccountId,
     });
 
@@ -250,7 +254,7 @@ async function handlePaystubsSync(userId: string, argyleUserId: string) {
 
     if (incomeEstimate.amount > 0) {
       await convex.mutation(api.argyle.syncIncomeData, {
-        userId,
+        serverKey: CONVEX_SERVER_KEY, userId,
         income: incomeEstimate.amount,
         payFrequency: incomeEstimate.frequency,
       });

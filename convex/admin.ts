@@ -1,5 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./lib/auth";
 
 // Get all active payment connections (admin function)
 export const getPaymentConnections = query({
@@ -7,6 +8,7 @@ export const getPaymentConnections = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get all active payment routings
     const routings = await ctx.db
       .query("rentPaymentRouting")
@@ -74,6 +76,7 @@ export const getPaymentConnections = query({
 export const getAdminDashboardStats = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Count totals
     const renters = await ctx.db.query("renters").collect();
     const propertyManagers = await ctx.db.query("propertyManagers").collect();
@@ -117,6 +120,7 @@ export const getAdminDashboardStats = query({
 export const getConnectionStats = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const routings = await ctx.db
       .query("rentPaymentRouting")
       .collect();

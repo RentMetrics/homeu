@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexReactClient } from 'convex/react';
+import { ConvexProviderWithClerk } from 'convex/react-clerk';
+import { useAuth } from '@clerk/nextjs';
 
 interface ConvexWrapperProps {
   children: React.ReactNode;
@@ -31,9 +33,11 @@ export function ConvexWrapper({ children }: ConvexWrapperProps) {
     return <>{children}</>;
   }
 
+  // Sends the Clerk session token with every Convex call so functions can
+  // derive the caller from ctx.auth instead of trusting a userId arg.
   return (
-    <ConvexProvider client={convex}>
+    <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
       {children}
-    </ConvexProvider>
+    </ConvexProviderWithClerk>
   );
-} 
+}

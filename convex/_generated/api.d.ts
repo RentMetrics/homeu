@@ -20,6 +20,7 @@ import type * as google_places_enrichment from "../google_places_enrichment.js";
 import type * as homeuFees from "../homeuFees.js";
 import type * as http from "../http.js";
 import type * as leases from "../leases.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as lib_businessSignal from "../lib/businessSignal.js";
 import type * as marketStats from "../marketStats.js";
 import type * as monthly_data from "../monthly_data.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   homeuFees: typeof homeuFees;
   http: typeof http;
   leases: typeof leases;
+  "lib/auth": typeof lib_auth;
   "lib/businessSignal": typeof lib_businessSignal;
   marketStats: typeof marketStats;
   monthly_data: typeof monthly_data;

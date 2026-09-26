@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
 
 // Google Places API integration for Convex
 async function searchPlaceByAddress(address: string): Promise<any> {
@@ -55,6 +56,7 @@ function getGooglePhotoUrl(photoReference: string, maxWidth: number = 400): stri
 export const enrichPropertyWithGoogleData = mutation({
   args: { propertyId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get the property
     const property = await ctx.db
       .query("multifamilyproperties")
@@ -102,6 +104,7 @@ export const getPropertiesForEnrichment = query({
     limit: v.number() 
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const properties = await ctx.db.query("multifamilyproperties").collect();
     
     // Return only the requested slice
@@ -124,6 +127,7 @@ export const enrichPropertiesBatch = mutation({
     propertyIds: v.array(v.string()) 
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const results = [];
     
     for (const propertyId of args.propertyIds) {
@@ -177,6 +181,7 @@ export const enrichPropertiesBatch = mutation({
 export const enrichAllProperties = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const properties = await ctx.db.query("multifamilyproperties").collect();
     
     // Only process the first 10 properties to avoid timeouts

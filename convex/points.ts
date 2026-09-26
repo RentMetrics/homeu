@@ -11,7 +11,8 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
+import { tryResolveUserId, resolveUserId, requireAdmin, requireServerKey } from "./lib/auth";
 
 // ========================================
 // CONSTANTS
@@ -72,16 +73,18 @@ export const TIER_THRESHOLDS = {
  * Get user's current point balance and stats
  */
 export const getUserPoints = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const userPoints = await ctx.db
       .query("userPoints")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!userPoints) {
       return {
-        userId: args.userId,
+        userId: userId,
         currentBalance: 0,
         totalEarned: 0,
         totalRedeemed: 0,
@@ -100,17 +103,19 @@ export const getUserPoints = query({
  */
 export const getPointTransactions = query({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     limit: v.optional(v.number()),
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const limit = args.limit || 50;
     const offset = args.offset || 0;
 
     const transactions = await ctx.db
       .query("pointTransactions")
-      .withIndex("by_userId_createdAt", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit + offset);
 
@@ -122,13 +127,15 @@ export const getPointTransactions = query({
  * Get points expiring soon (within 90 days)
  */
 export const getExpiringPoints = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const ninetyDaysFromNow = Date.now() + (90 * 24 * 60 * 60 * 1000);
 
     const expiringTransactions = await ctx.db
       .query("pointTransactions")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .filter((q) =>
         q.and(
           q.eq(q.field("type"), "earn"),
@@ -158,12 +165,15 @@ export const getExpiringPoints = query({
  * Award points for account creation
  */
 export const awardSignupPoints = mutation({
-  args: { userId: v.string(), email: v.string() },
+  args: { serverKey: v.optional(v.string()), userId: v.string(), email: v.string() },
   handler: async (ctx, args) => {
+    // Mints points: only the app's own server (Clerk/payment webhooks) may call.
+    requireServerKey(args.serverKey);
+    const userId = args.userId;
     // Check if already awarded
     const existing = await ctx.db
       .query("pointTransactions")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("category"), "signup"))
       .first();
 
@@ -172,7 +182,7 @@ export const awardSignupPoints = mutation({
     }
 
     return await awardPointsInternal(ctx, {
-      userId: args.userId,
+      userId: userId,
       points: POINT_VALUES.ACCOUNT_CREATION,
       category: "signup",
       description: "Welcome to HomeU! Account creation bonus",
@@ -183,7 +193,7 @@ export const awardSignupPoints = mutation({
 /**
  * Award points for profile completion
  */
-export const awardProfileCompletionPoints = mutation({
+export const awardProfileCompletionPoints = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     return await awardPointsInternal(ctx, {
@@ -198,7 +208,7 @@ export const awardProfileCompletionPoints = mutation({
 /**
  * Award points for identity verification
  */
-export const awardVerificationPoints = mutation({
+export const awardVerificationPoints = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     return await awardPointsInternal(ctx, {
@@ -213,7 +223,7 @@ export const awardVerificationPoints = mutation({
 /**
  * Award points for linking bank account
  */
-export const awardBankLinkPoints = mutation({
+export const awardBankLinkPoints = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     return await awardPointsInternal(ctx, {
@@ -228,7 +238,7 @@ export const awardBankLinkPoints = mutation({
 /**
  * Award points for rent payment
  */
-export const awardRentPaymentPoints = mutation({
+export const awardRentPaymentPoints = internalMutation({
   args: {
     userId: v.string(),
     paymentId: v.string(),
@@ -279,7 +289,7 @@ export const awardRentPaymentPoints = mutation({
 /**
  * Award points for referral milestone
  */
-export const awardReferralPoints = mutation({
+export const awardReferralPoints = internalMutation({
   args: {
     referrerId: v.string(),
     referredUserId: v.string(),
@@ -503,15 +513,17 @@ function getTier(totalPoints: number): string {
  */
 export const redeemPoints = mutation({
   args: {
-    userId: v.string(),
+    serverKey: v.optional(v.string()),
+    userId: v.optional(v.string()),
     points: v.number(),
     description: v.string(),
     awardcoRedemptionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId, args.serverKey);
     const userPoints = await ctx.db
       .query("userPoints")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!userPoints) {
@@ -527,7 +539,7 @@ export const redeemPoints = mutation({
 
     // Create transaction
     await ctx.db.insert("pointTransactions", {
-      userId: args.userId,
+      userId: userId,
       type: "redeem",
       category: "redemption",
       amount: -args.points,
@@ -566,6 +578,7 @@ export const redeemPoints = mutation({
 export const getPointStatistics = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const allUsers = await ctx.db.query("userPoints").collect();
 
     const stats = {
@@ -594,6 +607,7 @@ export const getPointStatistics = query({
 export const getTopEarners = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const limit = args.limit || 10;
 
     const topUsers = await ctx.db
@@ -612,6 +626,7 @@ export const getTopEarners = query({
  */
 export const awardPoints = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     amount: v.number(),
     type: v.optional(v.string()),
@@ -620,8 +635,11 @@ export const awardPoints = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    // Mints points: only the app's own server (Clerk/payment webhooks) may call.
+    requireServerKey(args.serverKey);
+    const userId = args.userId;
     return await awardPointsInternal(ctx, {
-      userId: args.userId,
+      userId: userId,
       points: args.amount,
       category: args.source,
       description: args.description,

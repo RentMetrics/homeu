@@ -12,6 +12,8 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 export async function POST(req: Request) {
   try {
@@ -25,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     // Check if user already has an Argyle user ID
-    const status = await convex.query(api.argyle.getArgyleStatus, { userId });
+    const status = await convex.query(api.argyle.getArgyleStatus, { serverKey: CONVEX_SERVER_KEY, userId });
 
     let argyleUserId = status.argyleUserId;
 
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
 
       // Store Argyle user ID in Convex
       await convex.mutation(api.argyle.updateArgyleUserId, {
-        userId,
+        serverKey: CONVEX_SERVER_KEY, userId,
         argyleUserId,
       });
     }
@@ -76,7 +78,7 @@ export async function GET(req: Request) {
     }
 
     // Get Argyle status from Convex
-    const status = await convex.query(api.argyle.getArgyleStatus, { userId });
+    const status = await convex.query(api.argyle.getArgyleStatus, { serverKey: CONVEX_SERVER_KEY, userId });
 
     return NextResponse.json({
       success: true,

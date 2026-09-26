@@ -9,6 +9,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { tryResolveUserId, resolveUserId, requireAdmin } from "./lib/auth";
 
 // ========================================
 // QUERIES
@@ -19,12 +20,14 @@ import { mutation, query } from "./_generated/server";
  */
 export const getUserRentalHistory = query({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const history = await ctx.db
       .query("rentalHistory")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     // Sort by moveInDate descending (most recent first)
@@ -37,13 +40,15 @@ export const getUserRentalHistory = query({
  */
 export const getCurrentResidence = query({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const current = await ctx.db
       .query("rentalHistory")
       .withIndex("by_userId_status", (q) =>
-        q.eq("userId", args.userId).eq("status", "current")
+        q.eq("userId", userId).eq("status", "current")
       )
       .first();
 
@@ -56,12 +61,14 @@ export const getCurrentResidence = query({
  */
 export const getRentalHistoryStats = query({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const history = await ctx.db
       .query("rentalHistory")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     if (history.length === 0) {
@@ -117,7 +124,7 @@ export const getRentalHistoryStats = query({
  */
 export const addRentalHistory = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     address: v.string(),
     city: v.string(),
     state: v.string(),
@@ -132,6 +139,7 @@ export const addRentalHistory = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const now = Date.now();
 
     // If adding a current residence, mark any existing current as past
@@ -139,7 +147,7 @@ export const addRentalHistory = mutation({
       const existingCurrent = await ctx.db
         .query("rentalHistory")
         .withIndex("by_userId_status", (q) =>
-          q.eq("userId", args.userId).eq("status", "current")
+          q.eq("userId", userId).eq("status", "current")
         )
         .first();
 
@@ -153,7 +161,7 @@ export const addRentalHistory = mutation({
     }
 
     const id = await ctx.db.insert("rentalHistory", {
-      userId: args.userId,
+      userId: userId,
       address: args.address,
       city: args.city,
       state: args.state,
@@ -200,6 +208,9 @@ export const updateRentalHistory = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
+    const existing = await ctx.db.get(id);
+    if (!existing) return { success: false };
+    await resolveUserId(ctx, existing.userId);
     const filteredUpdates: Record<string, any> = { updatedAt: Date.now() };
 
     for (const [key, value] of Object.entries(updates)) {
@@ -222,6 +233,7 @@ export const recordPayment = mutation({
     isOnTime: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const residence = await ctx.db.get(args.id);
     if (!residence) {
       return { success: false, message: "Residence not found" };
@@ -256,6 +268,7 @@ export const verifyRentalHistory = mutation({
     verificationMethod: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.id, {
       verified: true,
       verificationMethod: args.verificationMethod,
@@ -275,6 +288,9 @@ export const deleteRentalHistory = mutation({
     id: v.id("rentalHistory"),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
+    if (!existing) return { success: false };
+    await resolveUserId(ctx, existing.userId);
     await ctx.db.delete(args.id);
     return { success: true };
   },
@@ -285,11 +301,12 @@ export const deleteRentalHistory = mutation({
  */
 export const linkToProperty = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     propertyId: v.string(),
     monthlyRent: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const now = Date.now();
 
     // Get property details
@@ -306,7 +323,7 @@ export const linkToProperty = mutation({
     const existingCurrent = await ctx.db
       .query("rentalHistory")
       .withIndex("by_userId_status", (q) =>
-        q.eq("userId", args.userId).eq("status", "current")
+        q.eq("userId", userId).eq("status", "current")
       )
       .first();
 
@@ -320,7 +337,7 @@ export const linkToProperty = mutation({
 
     // Create new current residence
     const id = await ctx.db.insert("rentalHistory", {
-      userId: args.userId,
+      userId: userId,
       address: property.address,
       city: property.city,
       state: property.state,

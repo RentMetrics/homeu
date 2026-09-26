@@ -8,8 +8,9 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { requireAdmin } from "./lib/auth";
 
 // Constants
 export const HOMEU_PLATFORM_FEE = 9.99;
@@ -30,7 +31,7 @@ export const HOMEU_POINTS_CONVERSION = HOMEU_REWARDS_FUNDING;
 /**
  * Record fee collection from a completed payment
  */
-export const recordFeeCollection = mutation({
+export const recordFeeCollection = internalMutation({
   args: {
     rentPaymentId: v.id("rentPayments"),
     statementId: v.id("monthlyStatements"),
@@ -90,7 +91,7 @@ export const recordFeeCollection = mutation({
 /**
  * Award fee points to renter ($1 = 100 points)
  */
-export const awardFeePoints = mutation({
+export const awardFeePoints = internalMutation({
   args: {
     renterId: v.string(),
     revenueId: v.id("homeuRevenue"),
@@ -187,7 +188,7 @@ export const awardFeePoints = mutation({
 /**
  * Update revenue status
  */
-export const updateRevenueStatus = mutation({
+export const updateRevenueStatus = internalMutation({
   args: {
     revenueId: v.id("homeuRevenue"),
     status: v.string(),
@@ -215,6 +216,7 @@ export const getFeeRevenueStats = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let revenues;
 
     if (args.month) {
@@ -304,6 +306,7 @@ export const getPropertyManagerRevenue = query({
     month: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let revenues = await ctx.db
       .query("homeuRevenue")
       .withIndex("by_propertyManagerId", (q) =>
@@ -333,6 +336,7 @@ export const getPropertyManagerRevenue = query({
 export const getMonthlyFeeBreakdown = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const revenues = await ctx.db.query("homeuRevenue").collect();
 
     // Group by month
@@ -444,6 +448,7 @@ export const getRevenueAuditTrail = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     if (args.rentPaymentId) {
       const revenue = await ctx.db
         .query("homeuRevenue")
@@ -473,6 +478,7 @@ export const getRevenueAuditTrail = query({
 export const getProjectedRevenue = query({
   args: { month: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get all active statements for the month
     const statements = await ctx.db
       .query("monthlyStatements")
@@ -523,6 +529,7 @@ export const getProjectedRevenue = query({
 export const getPointsLiabilitySummary = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     // Get all user points
     const allUserPoints = await ctx.db.query("userPoints").collect();
 

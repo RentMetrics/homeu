@@ -1,10 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
 
 // Generate an upload URL for the client
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return { url: await ctx.storage.generateUploadUrl() };
   },
 });
@@ -19,6 +21,7 @@ export const saveImage = mutation({
     isPrimary: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // If this is set as primary, unset any existing primary images for this property
     if (args.isPrimary) {
       const existing = await ctx.db
@@ -77,6 +80,7 @@ export const getImageUrl = query({
 export const setPrimaryImage = mutation({
   args: { imageId: v.id("propertyImages") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const image = await ctx.db.get(args.imageId);
     if (!image) throw new Error("Image not found");
 
@@ -121,6 +125,7 @@ export const getPrimaryImagesForProperties = query({
 export const deleteImage = mutation({
   args: { imageId: v.id("propertyImages") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const image = await ctx.db.get(args.imageId);
     if (!image) throw new Error("Image not found");
 

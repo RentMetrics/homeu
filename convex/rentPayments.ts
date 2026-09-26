@@ -13,6 +13,7 @@ import { v } from "convex/values";
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { resolveUserId, tryResolveUserId, requireAdmin, requireServerKey } from "./lib/auth";
 
 // Constants
 export const HOMEU_PLATFORM_FEE = 9.99;
@@ -38,15 +39,17 @@ const HOMEU_BUSINESS_ID = process.env.HOMEU_STRADDLE_BUSINESS_ID || 'homeu_busin
  */
 export const initiateRentPayment = mutation({
   args: {
-    renterId: v.string(),
+    serverKey: v.optional(v.string()),
+    renterId: v.optional(v.string()),
     statementId: v.id("monthlyStatements"),
     paykey: v.string(), // Renter's payment method (bank account)
     paymentMethod: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const renterId = await resolveUserId(ctx, args.renterId, args.serverKey);
     // Get the statement
     const statement = await ctx.db.get(args.statementId);
-    if (!statement) {
+    if (!statement || statement.renterId !== renterId) {
       return { success: false, message: "Statement not found" };
     }
 
@@ -57,7 +60,7 @@ export const initiateRentPayment = mutation({
     // Get renter info
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.renterId))
+      .withIndex("by_userId", (q) => q.eq("userId", renterId))
       .first();
 
     if (!renter || !renter.straddleCustomerId) {
@@ -67,7 +70,7 @@ export const initiateRentPayment = mutation({
     // Get routing info for auto-pay check
     const routing = await ctx.db
       .query("rentPaymentRouting")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .first();
 
     // Calculate timing metrics
@@ -79,7 +82,7 @@ export const initiateRentPayment = mutation({
 
     // Create the rent payment record
     const rentPaymentId = await ctx.db.insert("rentPayments", {
-      renterId: args.renterId,
+      renterId: renterId,
       statementId: args.statementId,
       propertyId: statement.propertyId,
       propertyManagerId: statement.propertyManagerId,
@@ -130,12 +133,15 @@ export const initiateRentPayment = mutation({
  */
 export const updatePaymentWithStraddleIds = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     rentPaymentId: v.id("rentPayments"),
     straddlePaymentId: v.string(),
     straddleRentRouteId: v.optional(v.string()),
     straddleFeeRouteId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Server-only: called by /api/payments/rent routes + Straddle webhook.
+    requireServerKey(args.serverKey);
     await ctx.db.patch(args.rentPaymentId, {
       straddlePaymentId: args.straddlePaymentId,
       straddleRentRouteId: args.straddleRentRouteId,
@@ -157,12 +163,15 @@ export const updatePaymentWithStraddleIds = mutation({
  */
 export const processPaymentCompletion = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     rentPaymentId: v.id("rentPayments"),
     straddlePaymentId: v.string(),
     status: v.string(), // 'completed' or 'failed'
     failureReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Server-only: called by /api/payments/rent routes + Straddle webhook.
+    requireServerKey(args.serverKey);
     const payment = await ctx.db.get(args.rentPaymentId);
     if (!payment) {
       return { success: false, message: "Payment not found" };
@@ -276,9 +285,12 @@ export const processPaymentCompletion = mutation({
  */
 export const awardPaymentPoints = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     rentPaymentId: v.id("rentPayments"),
   },
   handler: async (ctx, args) => {
+    // Server-only: called by /api/payments/rent routes + Straddle webhook.
+    requireServerKey(args.serverKey);
     const payment = await ctx.db.get(args.rentPaymentId);
     if (!payment || payment.status !== "completed" || payment.pointsAwarded) {
       return { success: false, message: "Payment not eligible for points" };
@@ -422,10 +434,12 @@ export const awardPaymentPoints = mutation({
  * Get payment with full fee breakdown
  */
 export const getPaymentWithFeeBreakdown = query({
-  args: { rentPaymentId: v.id("rentPayments") },
+  args: { rentPaymentId: v.id("rentPayments"), serverKey: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const payment = await ctx.db.get(args.rentPaymentId);
     if (!payment) return null;
+    // Owner, admin, or the app's server only.
+    if (!(await tryResolveUserId(ctx, payment.renterId, args.serverKey))) return null;
 
     const statement = payment.statementId
       ? await ctx.db.get(payment.statementId)
@@ -470,14 +484,17 @@ export const getPaymentWithFeeBreakdown = query({
  */
 export const getRenterPayments = query({
   args: {
-    renterId: v.string(),
+    serverKey: v.optional(v.string()),
+    renterId: v.optional(v.string()),
     limit: v.optional(v.number()),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId, args.serverKey);
+    if (!renterId) return [];
     let payments = await ctx.db
       .query("rentPayments")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .order("desc")
       .take(args.limit || 50);
 
@@ -500,6 +517,7 @@ export const getPropertyManagerPayments = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     let payments = await ctx.db
       .query("rentPayments")
       .withIndex("by_propertyManagerId", (q) =>
@@ -535,11 +553,13 @@ export const getPropertyManagerPayments = query({
  * Get pending payments requiring action
  */
 export const getPendingPayments = query({
-  args: { renterId: v.string() },
+  args: { renterId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return [];
     const pendingPayments = await ctx.db
       .query("rentPayments")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "pending"),
@@ -560,17 +580,19 @@ export const getPendingPayments = query({
  * Get payment statistics for a renter
  */
 export const getRenterPaymentStats = query({
-  args: { renterId: v.string() },
+  args: { renterId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return null;
     const payments = await ctx.db
       .query("rentPayments")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .filter((q) => q.eq(q.field("status"), "completed"))
       .collect();
 
     const streak = await ctx.db
       .query("paymentStreaks")
-      .withIndex("by_userId", (q) => q.eq("userId", args.renterId))
+      .withIndex("by_userId", (q) => q.eq("userId", renterId))
       .first();
 
     const totalPaid = payments.reduce((sum, p) => sum + p.totalAmount, 0);

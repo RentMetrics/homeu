@@ -1,11 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { requireAdmin, resolveUserId, tryResolveUserId } from "./lib/auth";
 
 // Create or update user profile
 export const createOrUpdateUser = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     email: v.string(),
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
@@ -13,10 +14,11 @@ export const createOrUpdateUser = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     // Check if user already exists
     const existingUser = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (existingUser) {
@@ -31,7 +33,7 @@ export const createOrUpdateUser = mutation({
     } else {
       // Create new user with default values
       const newUserId = await ctx.db.insert("renters", {
-        userId: args.userId,
+        userId: userId,
         email: args.email,
         firstName: args.firstName || "",
         lastName: args.lastName || "",
@@ -58,11 +60,13 @@ export const createOrUpdateUser = mutation({
 
 // Get user profile by userId
 export const getUserProfile = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const user = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     return user;
@@ -72,7 +76,7 @@ export const getUserProfile = query({
 // Update user profile
 export const updateUserProfile = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
@@ -86,7 +90,8 @@ export const updateUserProfile = mutation({
     income: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, ...updateData } = args;
+    const { userId: requestedUserId, ...updateData } = args;
+    const userId = await resolveUserId(ctx, requestedUserId);
 
     const existingUser = await ctx.db
       .query("renters")
@@ -114,6 +119,7 @@ export const verifyUser = mutation({
     verificationStatus: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existingUser = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -137,6 +143,7 @@ export const verifyUser = mutation({
 export const getAllUsers = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const query = ctx.db.query("renters");
     if (args.limit) {
       return await query.take(args.limit);
@@ -149,6 +156,7 @@ export const getAllUsers = query({
 export const getVerifiedUsers = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const query = ctx.db.query("renters")
       .filter((q) => q.eq(q.field("verified"), true));
 
@@ -163,6 +171,7 @@ export const getVerifiedUsers = query({
 export const getRecentSignups = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000); // 30 days ago
 
     const query = ctx.db.query("renters")
@@ -179,6 +188,7 @@ export const getRecentSignups = query({
 // Get user count (admin function)
 export const getUserCount = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const users = await ctx.db.query("renters").collect();
     return users.length;
   },
@@ -187,7 +197,7 @@ export const getUserCount = query({
 // Save or update a renter's lease application
 export const saveApplication = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     formData: v.any(),
     coApplicants: v.any(),
     occupants: v.any(),
@@ -195,9 +205,10 @@ export const saveApplication = mutation({
     incomeSources: v.any(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const existing = await ctx.db
       .query("savedApplications")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     const now = Date.now();
@@ -217,7 +228,7 @@ export const saveApplication = mutation({
     }
 
     return await ctx.db.insert("savedApplications", {
-      userId: args.userId,
+      userId: userId,
       formData: args.formData,
       coApplicants: args.coApplicants,
       occupants: args.occupants,
@@ -232,11 +243,13 @@ export const saveApplication = mutation({
 
 // Get a saved application for a user
 export const getSavedApplication = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     return await ctx.db
       .query("savedApplications")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
   },
 });

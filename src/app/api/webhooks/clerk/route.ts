@@ -9,6 +9,8 @@ import { createAwardcoClient } from '@/lib/awardco';
 const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 export async function POST(req: NextRequest) {
   if (!webhookSecret) {
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
     // Step 1: Award signup points in Convex
     try {
       const result = await convex.mutation(api.points.awardSignupPoints, {
-        userId: id,
+        serverKey: CONVEX_SERVER_KEY, userId: id,
         email: email,
       });
       console.log('Signup points awarded:', result);

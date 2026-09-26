@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, internalMutation, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireAdmin } from "./lib/auth";
 
 // ============================================
 // QUERIES
@@ -309,6 +310,7 @@ export const aggregateStateStats = internalMutation({
 export const triggerAggregation = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     await ctx.scheduler.runAfter(0, internal.marketStats.aggregateMarketStats);
     return { status: "scheduled", message: "Market stats aggregation has been scheduled." };
   },
@@ -322,6 +324,7 @@ export const triggerAggregation = mutation({
 export const seedMarketData = mutation({
   args: { state: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const now = Date.now();
     const currentDate = new Date(now);
     const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;

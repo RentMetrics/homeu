@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin, isAdmin, resolveUserId, tryResolveUserId } from "./lib/auth";
 
 // Create property manager organization
 export const createOrganization = mutation({
@@ -9,6 +10,7 @@ export const createOrganization = mutation({
     adminEmail: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const organizationId = await ctx.db.insert("propertyManagerOrganizations", {
       workosOrganizationId: args.workosOrganizationId,
       companyName: args.companyName,
@@ -34,6 +36,7 @@ export const createPropertyManager = mutation({
     role: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyManagerId = await ctx.db.insert("propertyManagers", {
       workosUserId: args.workosUserId,
       organizationId: args.organizationId,
@@ -55,6 +58,7 @@ export const createPropertyManager = mutation({
 export const getPropertyManagerByWorkosId = query({
   args: { workosUserId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("propertyManagers")
       .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))
@@ -66,6 +70,7 @@ export const getPropertyManagerByWorkosId = query({
 export const getOrganizationPropertyManagers = query({
   args: { organizationId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("propertyManagers")
       .withIndex("by_organizationId", (q) => q.eq("organizationId", args.organizationId))
@@ -80,6 +85,7 @@ export const assignPropertyToManager = mutation({
     propertyId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyManager = await ctx.db.get(args.propertyManagerId);
     if (!propertyManager) {
       throw new Error("Property manager not found");
@@ -98,7 +104,7 @@ export const assignPropertyToManager = mutation({
 // Submit renter application
 export const submitRenterApplication = mutation({
   args: {
-    renterId: v.string(),
+    renterId: v.optional(v.string()),
     propertyId: v.string(),
     propertyManagerId: v.string(),
     organizationId: v.string(),
@@ -106,8 +112,9 @@ export const submitRenterApplication = mutation({
     applicationData: v.any(),
   },
   handler: async (ctx, args) => {
+    const renterId = await resolveUserId(ctx, args.renterId);
     const applicationId = await ctx.db.insert("renterApplications", {
-      renterId: args.renterId,
+      renterId: renterId,
       propertyId: args.propertyId,
       propertyManagerId: args.propertyManagerId,
       organizationId: args.organizationId,
@@ -131,6 +138,7 @@ export const reviewRenterApplication = mutation({
     score: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.applicationId, {
       status: args.status,
       reviewedBy: args.reviewedBy,
@@ -147,6 +155,7 @@ export const reviewRenterApplication = mutation({
 export const getPropertyManagerApplications = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("renterApplications")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -159,6 +168,7 @@ export const getPropertyManagerApplications = query({
 export const getOrganizationApplications = query({
   args: { organizationId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyManagers = await ctx.db
       .query("propertyManagers")
       .withIndex("by_organizationId", (q) => q.eq("organizationId", args.organizationId))
@@ -191,6 +201,7 @@ export const createPropertyManagerInvoice = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const invoiceId = await ctx.db.insert("propertyManagerInvoices", {
       organizationId: args.organizationId,
       propertyManagerId: args.propertyManagerId,
@@ -217,6 +228,7 @@ export const updateInvoiceStatus = mutation({
     paymentMethod: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const updateData: any = {
       status: args.status,
       paymentMethod: args.paymentMethod,
@@ -237,6 +249,7 @@ export const updateInvoiceStatus = mutation({
 export const getOrganizationInvoices = query({
   args: { organizationId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("propertyManagerInvoices")
       .withIndex("by_organizationId", (q) => q.eq("organizationId", args.organizationId))
@@ -249,6 +262,7 @@ export const getOrganizationInvoices = query({
 export const getPropertyManagerStats = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const applications = await ctx.db
       .query("renterApplications")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -280,6 +294,7 @@ export const getPropertyManagerStats = query({
 export const updatePropertyManagerLastLogin = mutation({
   args: { workosUserId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyManager = await ctx.db
       .query("propertyManagers")
       .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))
@@ -297,11 +312,13 @@ export const updatePropertyManagerLastLogin = mutation({
 
 // Get renter applications
 export const getRenterApplications = query({
-  args: { renterId: v.string() },
+  args: { renterId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const renterId = await tryResolveUserId(ctx, args.renterId);
+    if (!renterId) return [];
     return await ctx.db
       .query("renterApplications")
-      .withIndex("by_renterId", (q) => q.eq("renterId", args.renterId))
+      .withIndex("by_renterId", (q) => q.eq("renterId", renterId))
       .order("desc")
       .collect();
   },
@@ -313,6 +330,7 @@ export const getAllPropertyManagers = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { limit = 100 } = args;
     const pms = await ctx.db.query("propertyManagers").take(limit);
 
@@ -375,6 +393,7 @@ export const adminCreatePropertyManager = mutation({
     propertyIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const id = await ctx.db.insert("propertyManagers", {
       workosUserId: `admin_created_${Date.now()}`,
       organizationId: `org_${Date.now()}`,
@@ -397,6 +416,7 @@ export const adminDeactivatePropertyManager = mutation({
     pmId: v.id("propertyManagers"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.pmId, { isActive: false });
     return args.pmId;
   },
@@ -408,6 +428,7 @@ export const adminReactivatePropertyManager = mutation({
     pmId: v.id("propertyManagers"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.pmId, { isActive: true });
     return args.pmId;
   },
@@ -419,6 +440,7 @@ export const findPropertyManagerForProperty = query({
     propertyId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const allPMs = await ctx.db.query("propertyManagers")
       .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
@@ -432,10 +454,14 @@ export const generateOnboardingToken = mutation({
     pmId: v.id("propertyManagers"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const pm = await ctx.db.get(args.pmId);
     if (!pm) throw new Error("Property manager not found");
 
-    const token = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    // Unguessable: the token alone authorizes completeOnboarding (sets payout bank).
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const token = `pm_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
     await ctx.db.insert("pmOnboardingTokens", {
@@ -524,6 +550,7 @@ export const completeOnboarding = mutation({
 export const getPaymentCollectionStatus = query({
   args: { workosUserId: v.string() },
   handler: async (ctx, args) => {
+    if (!(await isAdmin(ctx))) return null;
     const pm = await ctx.db
       .query("propertyManagers")
       .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))
@@ -552,6 +579,7 @@ export const setupPaymentCollection = mutation({
     defaultPayoutMethod: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const pm = await ctx.db
       .query("propertyManagers")
       .withIndex("by_workosUserId", (q) => q.eq("workosUserId", args.workosUserId))

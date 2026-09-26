@@ -1,11 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { resolveUserId, tryResolveUserId, requireAdmin } from "./lib/auth";
 
 // Create a new renter profile
 export const create = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     email: v.string(),
     firstName: v.string(),
     lastName: v.string(),
@@ -20,7 +21,8 @@ export const create = mutation({
     income: v.number(),
   },
   handler: async (ctx, args) => {
-    const { userId, email, ...renterData } = args;
+    const { userId: requestedUserId, email, ...renterData } = args;
+    const userId = await resolveUserId(ctx, requestedUserId);
 
     // Check if a renter profile already exists for this user
     const existingRenter = await ctx.db
@@ -49,11 +51,13 @@ export const create = mutation({
 
 // Get renter profile by userId
 export const getByUserId = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
     return renter;
   },
@@ -62,7 +66,7 @@ export const getByUserId = query({
 // Update renter profile
 export const update = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     updates: v.object({
       firstName: v.optional(v.string()),
       lastName: v.optional(v.string()),
@@ -89,9 +93,10 @@ export const update = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -109,7 +114,7 @@ export const update = mutation({
 // Update credit information
 export const updateCreditInfo = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     creditInfo: v.object({
       arrayId: v.string(),
       creditScore: v.number(),
@@ -117,9 +122,10 @@ export const updateCreditInfo = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -153,14 +159,15 @@ export const updateCreditInfo = mutation({
  */
 export const linkRenterToProperty = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     propertyId: v.string(),
     unitNumber: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -210,7 +217,7 @@ export const linkRenterToProperty = mutation({
       });
 
       await ctx.db.insert("pmOutreachRequests", {
-        renterId: args.userId,
+        renterId: userId,
         propertyId: args.propertyId,
         pmEmail: pm.email,
         pmCompanyName: pm.companyName,
@@ -252,7 +259,7 @@ export const linkRenterToProperty = mutation({
 
     if (property.pmEmail) {
       await ctx.db.insert("pmOutreachRequests", {
-        renterId: args.userId,
+        renterId: userId,
         propertyId: args.propertyId,
         pmEmail: property.pmEmail,
         pmCompanyName: property.pmCompanyName || "Unknown",
@@ -288,7 +295,7 @@ export const linkRenterToProperty = mutation({
  */
 export const submitManualPropertyAndLink = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     propertyName: v.string(),
     address: v.string(),
     city: v.string(),
@@ -301,9 +308,10 @@ export const submitManualPropertyAndLink = mutation({
     pmPhone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -342,7 +350,7 @@ export const submitManualPropertyAndLink = mutation({
     });
 
     await ctx.db.insert("pmOutreachRequests", {
-      renterId: args.userId,
+      renterId: userId,
       propertyId,
       pmEmail: args.pmEmail,
       pmCompanyName: args.pmCompanyName,
@@ -374,11 +382,12 @@ export const submitManualPropertyAndLink = mutation({
  * Skip property linking — user can do it later from the dashboard
  */
 export const skipPropertyLink = mutation({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (renter) {
@@ -395,11 +404,13 @@ export const skipPropertyLink = mutation({
  * Get renter's property link status and details
  */
 export const getPropertyLinkStatus = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return { status: "unlinked" };
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter || !renter.propertyId) {
@@ -431,6 +442,7 @@ export const getPropertyLinkStatus = query({
 export const getPendingOutreachRequests = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("pmOutreachRequests")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
@@ -447,6 +459,7 @@ export const updateVerificationStatus = mutation({
     documentsSubmitted: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const renter = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -469,6 +482,7 @@ export const updateVerificationStatus = mutation({
 export const getAllRenters = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     return await ctx.db.query("renters").collect();
   },
 });

@@ -1,10 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { resolveUserId, tryResolveUserId, requireAdmin } from "./lib/auth";
 
 // Store crypto payment
 export const storeCryptoPayment = mutation({
   args: {
-    userId: v.string(),
+    serverKey: v.optional(v.string()),
+    userId: v.optional(v.string()),
     propertyId: v.string(),
     amount: v.string(),
     currency: v.string(),
@@ -12,8 +14,9 @@ export const storeCryptoPayment = mutation({
     recipientAddress: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId, args.serverKey);
     const paymentId = await ctx.db.insert("cryptoPayments", {
-      userId: args.userId,
+      userId: userId,
       propertyId: args.propertyId,
       amount: args.amount,
       currency: args.currency,
@@ -30,6 +33,7 @@ export const storeCryptoPayment = mutation({
 // Update crypto payment status
 export const updateCryptoPaymentStatus = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     transactionHash: v.string(),
     status: v.string(),
     blockNumber: v.optional(v.number()),
@@ -45,6 +49,8 @@ export const updateCryptoPaymentStatus = mutation({
     if (!payment) {
       throw new Error("Payment not found");
     }
+    // Owner, admin, or the Coinbase webhook route (server key).
+    await resolveUserId(ctx, payment.userId, args.serverKey);
 
     await ctx.db.patch(payment._id, {
       status: args.status,
@@ -60,11 +66,13 @@ export const updateCryptoPaymentStatus = mutation({
 
 // Get user crypto payments
 export const getUserCryptoPayments = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     return await ctx.db
       .query("cryptoPayments")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -73,7 +81,7 @@ export const getUserCryptoPayments = query({
 // Store IPFS document
 export const storeIPFSDocument = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     fileName: v.string(),
     fileType: v.string(),
     documentType: v.string(),
@@ -83,8 +91,9 @@ export const storeIPFSDocument = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const documentId = await ctx.db.insert("ipfsDocuments", {
-      userId: args.userId,
+      userId: userId,
       fileName: args.fileName,
       fileType: args.fileType,
       documentType: args.documentType,
@@ -106,6 +115,9 @@ export const shareDocumentWithPropertyManagers = mutation({
     propertyManagerIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.documentId);
+    if (!doc) throw new Error("Document not found");
+    await resolveUserId(ctx, doc.userId);
     await ctx.db.patch(args.documentId, {
       isShared: true,
       sharedWith: args.propertyManagerIds,
@@ -117,11 +129,13 @@ export const shareDocumentWithPropertyManagers = mutation({
 
 // Get user's IPFS documents
 export const getUserIPFSDocuments = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     return await ctx.db
       .query("ipfsDocuments")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -131,6 +145,7 @@ export const getUserIPFSDocuments = query({
 export const getSharedDocuments = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const documents = await ctx.db
       .query("ipfsDocuments")
       .filter((q) =>
@@ -152,6 +167,9 @@ export const getSharedDocuments = query({
 export const deleteIPFSDocument = mutation({
   args: { documentId: v.id("ipfsDocuments") },
   handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.documentId);
+    if (!doc) throw new Error("Document not found");
+    await resolveUserId(ctx, doc.userId);
     await ctx.db.delete(args.documentId);
     return args.documentId;
   },
@@ -161,10 +179,14 @@ export const deleteIPFSDocument = mutation({
 export const getDocumentByHash = query({
   args: { ipfsHash: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const doc = await ctx.db
       .query("ipfsDocuments")
       .withIndex("by_ipfsHash", (q) => q.eq("ipfsHash", args.ipfsHash))
       .first();
+    if (!doc) return null;
+    // Owner or admin only.
+    if (!(await tryResolveUserId(ctx, doc.userId))) return null;
+    return doc;
   },
 });
 
@@ -172,6 +194,7 @@ export const getDocumentByHash = query({
 export const getPropertyCryptoPayments = query({
   args: { propertyId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("cryptoPayments")
       .withIndex("by_property", (q) => q.eq("propertyId", args.propertyId))
@@ -183,6 +206,7 @@ export const getPropertyCryptoPayments = query({
 // Get crypto payment statistics
 export const getCryptoPaymentStats = query({
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const allPayments = await ctx.db.query("cryptoPayments").collect();
 
     const totalPayments = allPayments.length;

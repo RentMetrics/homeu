@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
 
 // Upload occupancy data
 export const bulkUploadOccupancy = mutation({
@@ -14,6 +15,7 @@ export const bulkUploadOccupancy = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const insertedIds = [];
     for (const record of args.data) {
       const id = await ctx.db.insert("occupancyData", {
@@ -40,6 +42,7 @@ export const bulkUploadConcessions = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const insertedIds = [];
     for (const record of args.data) {
       const id = await ctx.db.insert("concessionData", {
@@ -68,6 +71,7 @@ export const bulkUploadRent = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const insertedIds = [];
     for (const record of args.data) {
       const id = await ctx.db.insert("rentData", {

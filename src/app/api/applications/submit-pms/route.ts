@@ -26,6 +26,8 @@ import { renderApplicationHtml } from "@/lib/pms/email";
 import { sendApplicationEmail } from "@/lib/email/resend";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,8 +48,8 @@ export async function POST(req: NextRequest) {
     // Load the property and everything HomeU knows about the renter
     const [property, connection, bundle] = await Promise.all([
       convex.query(api.multifamilyproperties.getPropertyById, { propertyId }),
-      convex.query(api.pms.getConnectionForSubmission, { propertyId }),
-      convex.query(api.pms.getApplicationBundle, { userId }),
+      convex.query(api.pms.getConnectionForSubmission, { serverKey: CONVEX_SERVER_KEY, propertyId }),
+      convex.query(api.pms.getApplicationBundle, { serverKey: CONVEX_SERVER_KEY, userId }),
     ]);
 
     if (!property) {
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest) {
 
       if (pmsResult.ok) {
         const submissionId = await convex.mutation(api.pms.recordSubmission, {
-          userId,
+          serverKey: CONVEX_SERVER_KEY, userId,
           propertyId,
           propertyName: property.propertyName,
           propertyAddress: property.address,
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
     const fallbackEmail = connection?.fallbackEmail || property.pmEmail;
     if (!fallbackEmail) {
       const submissionId = await convex.mutation(api.pms.recordSubmission, {
-        userId,
+        serverKey: CONVEX_SERVER_KEY, userId,
         propertyId,
         propertyName: property.propertyName,
         propertyAddress: property.address,
@@ -164,7 +166,7 @@ export async function POST(req: NextRequest) {
     });
 
     const submissionId = await convex.mutation(api.pms.recordSubmission, {
-      userId,
+      serverKey: CONVEX_SERVER_KEY, userId,
       propertyId,
       propertyName: property.propertyName,
       propertyAddress: property.address,

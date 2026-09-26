@@ -17,6 +17,8 @@ import { Id } from '../../../../../../convex/_generated/dataModel';
 import crypto from 'crypto';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 // Verify webhook signature from Straddle
 function verifyWebhookSignature(
@@ -63,9 +65,10 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-straddle-signature') || '';
     const webhookSecret = process.env.STRADDLE_WEBHOOK_SECRET || '';
 
-    // Verify signature in production
-    if (process.env.NODE_ENV === 'production' && webhookSecret) {
-      if (!verifyWebhookSignature(payload, signature, webhookSecret)) {
+    // Verify signature (fail closed in production: this route marks payments
+    // complete and awards points via CONVEX_SERVER_KEY).
+    if (process.env.NODE_ENV === 'production' || webhookSecret) {
+      if (!webhookSecret || !verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.error('Invalid webhook signature');
         return NextResponse.json(
           { error: 'Invalid signature' },
@@ -122,7 +125,7 @@ async function handlePaymentCompleted(event: WebhookPayload) {
   try {
     // 1. Process payment completion (updates status, statement, records revenue)
     const completionResult = await convex.mutation(api.rentPayments.processPaymentCompletion, {
-      rentPaymentId,
+      serverKey: CONVEX_SERVER_KEY, rentPaymentId,
       straddlePaymentId: paymentId,
       status: 'completed',
     });
@@ -140,7 +143,7 @@ async function handlePaymentCompleted(event: WebhookPayload) {
 
     // 2. Award points to the renter
     const pointsResult = await convex.mutation(api.rentPayments.awardPaymentPoints, {
-      rentPaymentId,
+      serverKey: CONVEX_SERVER_KEY, rentPaymentId,
     });
 
     if (pointsResult.success) {
@@ -154,11 +157,11 @@ async function handlePaymentCompleted(event: WebhookPayload) {
     // 3. Check and award achievements
     if (metadata.renterId) {
       const payment = await convex.query(api.rentPayments.getPaymentWithFeeBreakdown, {
-        rentPaymentId,
+        serverKey: CONVEX_SERVER_KEY, rentPaymentId,
       });
 
       await convex.mutation(api.achievements.checkAndAwardAchievements, {
-        userId: metadata.renterId,
+        serverKey: CONVEX_SERVER_KEY, userId: metadata.renterId,
         eventType: 'payment',
         eventData: {
           paymentId: rentPaymentId,
@@ -194,7 +197,7 @@ async function handlePaymentFailed(event: WebhookPayload) {
   try {
     // Update payment status to failed
     await convex.mutation(api.rentPayments.processPaymentCompletion, {
-      rentPaymentId,
+      serverKey: CONVEX_SERVER_KEY, rentPaymentId,
       straddlePaymentId: paymentId,
       status: 'failed',
       failureReason: failureReason || 'Payment failed',

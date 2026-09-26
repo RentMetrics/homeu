@@ -6,12 +6,14 @@
  * be submitted directly into a property's management system instead of the
  * renter re-typing it into the property's online application.
  *
- * Auth follows the codebase convention: Clerk auth is enforced at the
- * Next.js API layer; Convex functions receive the userId as an argument.
+ * Auth: renter-facing functions derive the user from the Clerk identity
+ * (ctx.auth); the Next.js API route acts for a user via CONVEX_SERVER_KEY.
+ * See convex/lib/auth.ts.
  */
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin, tryResolveUserId, resolveUserId, requireServerKey } from "./lib/auth";
 
 export const SUPPORTED_PROVIDERS = [
   "entrata",
@@ -51,6 +53,7 @@ export const getConnectionForProperty = query({
 export const listConnections = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const connections = await ctx.db.query("pmsConnections").collect();
 
     // Join in property names for the admin UI
@@ -84,6 +87,7 @@ export const upsertConnection = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     if (!SUPPORTED_PROVIDERS.includes(args.provider as any)) {
       throw new Error(`Unsupported PMS provider: ${args.provider}`);
     }
@@ -110,6 +114,7 @@ export const upsertConnection = mutation({
 export const deleteConnection = mutation({
   args: { connectionId: v.id("pmsConnections") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.delete(args.connectionId);
     return { success: true };
   },
@@ -121,8 +126,9 @@ export const deleteConnection = mutation({
  * internal key so browsers can't read integration config.
  */
 export const getConnectionForSubmission = query({
-  args: { propertyId: v.string() },
+  args: { propertyId: v.string(), serverKey: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    requireServerKey(args.serverKey);
     return await ctx.db
       .query("pmsConnections")
       .withIndex("by_propertyId", (q) => q.eq("propertyId", args.propertyId))
@@ -135,26 +141,27 @@ export const getConnectionForSubmission = query({
 // ---------------------------------------------------------------------------
 
 export const getApplicationBundle = query({
-  args: { userId: v.string() },
+  args: { serverKey: v.optional(v.string()), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId, args.serverKey);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     const savedApplication = await ctx.db
       .query("savedApplications")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     const rentalHistory = await ctx.db
       .query("rentalHistory")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     const employmentHistory = await ctx.db
       .query("employmentHistory")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     return { renter, savedApplication, rentalHistory, employmentHistory };
@@ -167,7 +174,8 @@ export const getApplicationBundle = query({
 
 export const recordSubmission = mutation({
   args: {
-    userId: v.string(),
+    serverKey: v.optional(v.string()),
+    userId: v.optional(v.string()),
     propertyId: v.optional(v.string()),
     propertyName: v.string(),
     propertyAddress: v.optional(v.string()),
@@ -182,10 +190,14 @@ export const recordSubmission = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId, args.serverKey);
     const now = Date.now();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { serverKey: _serverKey, userId: _requestedUserId, ...fields } = args;
 
     const submissionId = await ctx.db.insert("applicationSubmissions", {
-      ...args,
+      ...fields,
+      userId,
       events: [
         {
           at: now,
@@ -220,6 +232,7 @@ export const updateSubmissionStatus = mutation({
     externalApplicationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const submission = await ctx.db.get(args.submissionId);
     if (!submission) throw new Error("Submission not found");
 
@@ -240,11 +253,13 @@ export const updateSubmissionStatus = mutation({
 });
 
 export const getMySubmissions = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const submissions = await ctx.db
       .query("applicationSubmissions")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     // Newest first; strip the payload snapshot (can be large / sensitive)

@@ -3,6 +3,8 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../../convex/_generated/api';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 interface CoinbaseWebhookEvent {
   id: string;
@@ -62,10 +64,11 @@ export async function POST(request: NextRequest) {
     const payload = await request.text();
 
     // Verify signature in production
+    // This route mints points via CONVEX_SERVER_KEY, so it must fail closed:
+    // outside local dev, a missing secret or signature is rejected.
     const webhookSecret = process.env.COINBASE_COMMERCE_WEBHOOK_SECRET;
-    if (webhookSecret && signature) {
-      const isValid = verifyWebhookSignature(payload, signature, webhookSecret);
-      if (!isValid) {
+    if (webhookSecret || process.env.NODE_ENV === 'production') {
+      if (!webhookSecret || !signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.error('Invalid webhook signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         // Store the crypto payment
         await convex.mutation(api.blockchain.storeCryptoPayment, {
-          userId: metadata.renterId,
+          serverKey: CONVEX_SERVER_KEY, userId: metadata.renterId,
           propertyId: metadata.propertyId,
           amount: payment.value.crypto.amount,
           currency: payment.value.crypto.currency as 'ETH' | 'USDC' | 'USDT',
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
 
         // Update status to confirmed
         await convex.mutation(api.blockchain.updateCryptoPaymentStatus, {
-          transactionHash: payment.transaction_id,
+          serverKey: CONVEX_SERVER_KEY, transactionHash: payment.transaction_id,
           status: 'confirmed',
         });
 
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest) {
         // The $5 fee = 100 points, plus on-time bonus
         try {
           await convex.mutation(api.points.awardPoints, {
-            userId: metadata.renterId,
+            serverKey: CONVEX_SERVER_KEY, userId: metadata.renterId,
             amount: 100,
             type: 'earn',
             source: 'crypto_payment_fee',
@@ -120,7 +123,7 @@ export async function POST(request: NextRequest) {
 
           // On-time bonus
           await convex.mutation(api.points.awardPoints, {
-            userId: metadata.renterId,
+            serverKey: CONVEX_SERVER_KEY, userId: metadata.renterId,
             amount: 100,
             type: 'earn',
             source: 'on_time_payment',
@@ -145,7 +148,7 @@ export async function POST(request: NextRequest) {
 
         if (payment) {
           await convex.mutation(api.blockchain.updateCryptoPaymentStatus, {
-            transactionHash: payment.transaction_id,
+            serverKey: CONVEX_SERVER_KEY, transactionHash: payment.transaction_id,
             status: 'failed',
           });
         }

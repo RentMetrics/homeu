@@ -16,6 +16,8 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../../convex/_generated/api';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 export async function GET(req: Request) {
   try {
@@ -29,7 +31,7 @@ export async function GET(req: Request) {
     }
 
     // Get user's Argyle status
-    const status = await convex.query(api.argyle.getArgyleStatus, { userId });
+    const status = await convex.query(api.argyle.getArgyleStatus, { serverKey: CONVEX_SERVER_KEY, userId });
 
     if (!status.argyleUserId) {
       return NextResponse.json(
@@ -90,7 +92,7 @@ export async function GET(req: Request) {
 
     // Update Convex with verified employment data
     const updateResult = await convex.mutation(api.argyle.updateVerifiedEmployment, {
-      userId,
+      serverKey: CONVEX_SERVER_KEY, userId,
       argyleAccountId,
       employerName,
       position: currentEmployment.job_title,
@@ -110,7 +112,7 @@ export async function GET(req: Request) {
       }
 
       await convex.mutation(api.argyle.upsertEmploymentHistory, {
-        userId,
+        serverKey: CONVEX_SERVER_KEY, userId,
         argyleUserId,
         argyleEmploymentId: employment.id,
         employerName: empEmployerName,

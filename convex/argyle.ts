@@ -9,8 +9,9 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { POINT_VALUES } from "./points";
+import { tryResolveUserId, resolveUserId, requireServerKey } from "./lib/auth";
 
 // ========================================
 // QUERIES
@@ -20,11 +21,24 @@ import { POINT_VALUES } from "./points";
  * Get user's Argyle connection status
  */
 export const getArgyleStatus = query({
-  args: { userId: v.string() },
+  args: { serverKey: v.optional(v.string()), userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId, args.serverKey);
+    if (!userId) {
+      return {
+        hasArgyleConnection: false,
+        argyleUserId: null,
+        employmentVerified: false,
+        verifiedEmployer: null,
+        verifiedPosition: null,
+        verifiedIncome: null,
+        verifiedPayFrequency: null,
+        employmentVerificationDate: null,
+      };
+    }
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -57,11 +71,13 @@ export const getArgyleStatus = query({
  * Get user's employment history from Argyle
  */
 export const getEmploymentHistory = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const history = await ctx.db
       .query("employmentHistory")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     // Sort by start date (most recent first)
@@ -75,8 +91,10 @@ export const getEmploymentHistory = query({
  * Get a renter by their Argyle user ID
  */
 export const getRenterByArgyleUserId = query({
-  args: { argyleUserId: v.string() },
+  args: { argyleUserId: v.string(), serverKey: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // Server-only: used by the Argyle webhook to map argyleUserId → renter.
+    requireServerKey(args.serverKey);
     return await ctx.db
       .query("renters")
       .withIndex("by_argyleUserId", (q) => q.eq("argyleUserId", args.argyleUserId))
@@ -94,13 +112,15 @@ export const getRenterByArgyleUserId = query({
  */
 export const updateArgyleUserId = mutation({
   args: {
-    userId: v.string(),
+    serverKey: v.optional(v.string()),
+    userId: v.optional(v.string()),
     argyleUserId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId, args.serverKey);
     const renter = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!renter) {
@@ -121,6 +141,7 @@ export const updateArgyleUserId = mutation({
  */
 export const updateVerifiedEmployment = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     argyleAccountId: v.string(),
     employerName: v.string(),
@@ -130,6 +151,8 @@ export const updateVerifiedEmployment = mutation({
     employmentStartDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Server-only: Argyle webhook / API routes (verified employment & income).
+    requireServerKey(args.serverKey);
     const renter = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -184,6 +207,7 @@ export const updateVerifiedEmployment = mutation({
  */
 export const upsertEmploymentHistory = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     argyleUserId: v.string(),
     argyleEmploymentId: v.string(),
@@ -198,6 +222,8 @@ export const upsertEmploymentHistory = mutation({
     employerState: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Server-only: Argyle webhook / API routes (verified employment & income).
+    requireServerKey(args.serverKey);
     const now = Date.now();
 
     // Check if record already exists
@@ -257,10 +283,13 @@ export const upsertEmploymentHistory = mutation({
  */
 export const handleAccountRemoved = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     argyleAccountId: v.string(),
   },
   handler: async (ctx, args) => {
+    // Server-only: Argyle webhook / API routes (verified employment & income).
+    requireServerKey(args.serverKey);
     const renter = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -289,10 +318,13 @@ export const handleAccountRemoved = mutation({
  */
 export const updateArgyleAccountId = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     argyleAccountId: v.string(),
   },
   handler: async (ctx, args) => {
+    // Server-only: Argyle webhook / API routes (verified employment & income).
+    requireServerKey(args.serverKey);
     const renter = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -422,7 +454,7 @@ async function awardEmploymentVerificationPointsInternal(
 /**
  * Award employment verification points (callable mutation)
  */
-export const awardEmploymentVerificationPoints = mutation({
+export const awardEmploymentVerificationPoints = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     return await awardEmploymentVerificationPointsInternal(ctx, args.userId);
@@ -434,11 +466,14 @@ export const awardEmploymentVerificationPoints = mutation({
  */
 export const syncIncomeData = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     income: v.number(),
     payFrequency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Server-only: Argyle webhook / API routes (verified employment & income).
+    requireServerKey(args.serverKey);
     const renter = await ctx.db
       .query("renters")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))

@@ -1,6 +1,7 @@
 import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { requireAdmin } from "./lib/auth";
 
 // ========================================
 // SUBSCRIPTION MANAGEMENT
@@ -10,6 +11,7 @@ import { api } from "./_generated/api";
 export const hasRentPredictionAccess = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const subscription = await ctx.db
       .query("propertyManagerSubscriptions")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -41,6 +43,7 @@ export const hasRentPredictionAccess = query({
 export const getSubscription = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("propertyManagerSubscriptions")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -63,6 +66,7 @@ export const upsertSubscription = mutation({
     cancelAtPeriodEnd: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db
       .query("propertyManagerSubscriptions")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -92,6 +96,7 @@ export const upsertSubscription = mutation({
 export const getCurrentPrediction = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -111,6 +116,7 @@ export const getPrediction = query({
     month: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("rentPredictions")
       .withIndex("by_propertyManagerId_month", (q) =>
@@ -127,6 +133,7 @@ export const getPredictionHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const predictions = await ctx.db
       .query("rentPredictions")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -165,6 +172,7 @@ export const storePrediction = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Check if prediction already exists for this month
     const existing = await ctx.db
       .query("rentPredictions")
@@ -207,6 +215,7 @@ export const recordBalanceCheck = mutation({
     accountStatus: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const now = Date.now();
     // Balance checks expire after 24 hours
     const expiresAt = now + (24 * 60 * 60 * 1000);
@@ -226,6 +235,7 @@ export const getRecentBalanceCheck = query({
     maxAgeHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const maxAge = (args.maxAgeHours || 24) * 60 * 60 * 1000;
     const cutoff = Date.now() - maxAge;
 
@@ -250,6 +260,7 @@ export const getBalanceCheckHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("balanceChecks")
       .withIndex("by_propertyManagerId", (q) => q.eq("propertyManagerId", args.propertyManagerId))
@@ -266,6 +277,7 @@ export const getBalanceCheckHistory = query({
 export const getActiveRentersForPrediction = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     // Get all active rent payment routings for this PM
     const routings = await ctx.db
       .query("rentPaymentRouting")
@@ -301,6 +313,7 @@ export const getActiveRentersForPrediction = query({
 export const getPredictionSummary = query({
   args: { propertyManagerId: v.string() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 

@@ -14,6 +14,8 @@ import { straddleAPI } from '@/lib/straddle';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lets Convex trust this server route to act for a user (see convex/lib/auth.ts).
+const CONVEX_SERVER_KEY = process.env.CONVEX_SERVER_KEY;
 
 // Constants
 const HOMEU_CONVENIENCE_FEE = 5.00;
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Initiate the rent payment in Convex
     const initiateResult = await convex.mutation(api.rentPayments.initiateRentPayment, {
-      renterId: userId,
+      serverKey: CONVEX_SERVER_KEY, renterId: userId,
       statementId: statementId as Id<"monthlyStatements">,
       paykey,
       paymentMethod: 'ach',
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the renter's Straddle customer ID
-    const renter = await convex.query(api.straddle.getBankAccounts, { userId });
+    const renter = await convex.query(api.straddle.getBankAccounts, { serverKey: CONVEX_SERVER_KEY, userId });
 
     if ('error' in renter) {
       return NextResponse.json(
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Get property manager's Straddle business ID from the statement
     const statement = await convex.query(api.statements.getStatementById, {
-      statementId: statementId as Id<"monthlyStatements">,
+      serverKey: CONVEX_SERVER_KEY, statementId: statementId as Id<"monthlyStatements">,
     });
 
     if (!statement) {
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
 
       // Update payment with Straddle IDs
       await convex.mutation(api.rentPayments.updatePaymentWithStraddleIds, {
-        rentPaymentId: initiateResult.rentPaymentId,
+        serverKey: CONVEX_SERVER_KEY, rentPaymentId: initiateResult.rentPaymentId,
         straddlePaymentId: splitPayment.id,
         straddleRentRouteId: splitPayment.routes[0]?.id,
         straddleFeeRouteId: splitPayment.routes[1]?.id,
@@ -144,7 +146,7 @@ export async function POST(request: NextRequest) {
         const mockPaymentId = `mock_${Date.now()}`;
 
         await convex.mutation(api.rentPayments.updatePaymentWithStraddleIds, {
-          rentPaymentId: initiateResult.rentPaymentId,
+          serverKey: CONVEX_SERVER_KEY, rentPaymentId: initiateResult.rentPaymentId,
           straddlePaymentId: mockPaymentId,
         });
 
@@ -199,7 +201,7 @@ export async function GET(request: NextRequest) {
     if (paymentId) {
       // Get specific payment
       const payment = await convex.query(api.rentPayments.getPaymentWithFeeBreakdown, {
-        rentPaymentId: paymentId as Id<"rentPayments">,
+        serverKey: CONVEX_SERVER_KEY, rentPaymentId: paymentId as Id<"rentPayments">,
       });
 
       return NextResponse.json({ payment });
@@ -207,7 +209,7 @@ export async function GET(request: NextRequest) {
 
     // Get all payments for user
     const payments = await convex.query(api.rentPayments.getRenterPayments, {
-      renterId: userId,
+      serverKey: CONVEX_SERVER_KEY, renterId: userId,
       limit: 20,
     });
 

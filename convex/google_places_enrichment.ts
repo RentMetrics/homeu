@@ -9,6 +9,7 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
+import { requireAdmin } from "./lib/auth";
 
 // Google Places API types
 interface PlacePhoto {
@@ -169,6 +170,7 @@ export const enrichSingleProperty = action({
     force: v.optional(v.boolean()), // Force re-enrichment even if already has data
   },
   handler: async (ctx, args): Promise<EnrichSingleResult> => {
+    await requireAdmin(ctx);
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
     if (!apiKey) {
@@ -289,6 +291,7 @@ export const enrichPropertiesByLocation = action({
     force: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<EnrichBatchResults> => {
+    await requireAdmin(ctx);
     const limit = args.limit || 50;
 
     // Get properties that need enrichment
@@ -349,6 +352,7 @@ export const enrichAllProperties = action({
     force: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<EnrichBatchResults> => {
+    await requireAdmin(ctx);
     const maxProperties = args.maxProperties || 100;
 
     console.log(`Starting enrichment for up to ${maxProperties} properties`);
@@ -411,6 +415,7 @@ export const getPropertiesNeedingEnrichment = action({
     percentage: string;
     properties: { propertyId: string; propertyName: string; city: string; state: string }[];
   }> => {
+    await requireAdmin(ctx);
     const limit = args.limit || 100;
 
     const properties = await ctx.runQuery(api.multifamilyproperties.getAllProperties, {

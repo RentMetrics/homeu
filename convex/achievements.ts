@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { tryResolveUserId, resolveUserId, requireServerKey } from "./lib/auth";
 
 // ========================================
 // ACHIEVEMENT DEFINITIONS
@@ -272,7 +273,7 @@ export const ACHIEVEMENT_DEFINITIONS = [
 /**
  * Seed achievement definitions into the database
  */
-export const seedAchievements = mutation({
+export const seedAchievements = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -348,8 +349,10 @@ export const getAchievementsByCategory = query({
  * Get user's achievement progress
  */
 export const getUserAchievementProgress = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return null;
     // Get all achievements
     const allAchievements = await ctx.db
       .query("achievementDefinitions")
@@ -359,13 +362,13 @@ export const getUserAchievementProgress = query({
     // Get user's progress
     const userProgress = await ctx.db
       .query("achievementProgress")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     // Get user's unlocked achievements
     const unlockedAchievements = await ctx.db
       .query("userAchievements")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
     const unlockedIds = new Set(unlockedAchievements.map((a) => a.achievementId));
@@ -410,11 +413,13 @@ export const getUserAchievementProgress = query({
  * Get recently unlocked achievements
  */
 export const getRecentUnlocks = query({
-  args: { userId: v.string(), limit: v.optional(v.number()) },
+  args: { userId: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const recentUnlocks = await ctx.db
       .query("userAchievements")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .take(args.limit || 5);
 
@@ -429,7 +434,7 @@ export const getRecentUnlocks = query({
 /**
  * Update achievement progress
  */
-export const updateAchievementProgress = mutation({
+export const updateAchievementProgress = internalMutation({
   args: {
     userId: v.string(),
     achievementId: v.string(),
@@ -630,7 +635,7 @@ async function unlockAchievement(
 /**
  * Mutation wrapper for unlocking achievement
  */
-export const unlockAchievementMutation = mutation({
+export const unlockAchievementMutation = internalMutation({
   args: {
     userId: v.string(),
     achievementId: v.string(),
@@ -664,11 +669,14 @@ export const unlockAchievementMutation = mutation({
  */
 export const checkAndAwardAchievements = mutation({
   args: {
+    serverKey: v.optional(v.string()),
     userId: v.string(),
     eventType: v.string(), // 'payment', 'signup', 'verification', 'referral', etc.
     eventData: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    // Awards points: only the app's server (Straddle webhook) may call.
+    requireServerKey(args.serverKey);
     const { userId, eventType, eventData } = args;
     const awarded: string[] = [];
 
@@ -914,14 +922,15 @@ export const checkAndAwardAchievements = mutation({
  */
 export const markCelebrationShown = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     achievementId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const progress = await ctx.db
       .query("achievementProgress")
       .withIndex("by_userId_achievementId", (q) =>
-        q.eq("userId", args.userId).eq("achievementId", args.achievementId)
+        q.eq("userId", userId).eq("achievementId", args.achievementId)
       )
       .first();
 
@@ -941,11 +950,13 @@ export const markCelebrationShown = mutation({
  * Get achievements that haven't shown celebration yet
  */
 export const getPendingCelebrations = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return [];
     const pending = await ctx.db
       .query("achievementProgress")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .filter((q) =>
         q.and(
           q.eq(q.field("status"), "completed"),

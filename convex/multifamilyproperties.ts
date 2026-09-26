@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
 
 export const bulkUpload = mutation({
   args: {
@@ -17,6 +18,7 @@ export const bulkUpload = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
           const properties = args.properties.map(property => ({
         ...property,
         createdAt: Date.now(),
@@ -571,6 +573,7 @@ export const updatePropertyWithGoogleData = mutation({
     googleLastVerified: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const property = await ctx.db
       .query("multifamilyproperties")
       .withIndex("by_propertyId", (q) => q.eq("propertyId", args.propertyId))
@@ -639,6 +642,7 @@ export const updatePMContact = mutation({
     pmNotes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { propertyId, ...fields } = args;
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(fields)) {
@@ -761,6 +765,7 @@ export const createProperty = mutation({
     pmContactName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const propertyId = `MANUAL_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const id = await ctx.db.insert("multifamilyproperties", {
       propertyId,

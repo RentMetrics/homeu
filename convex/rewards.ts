@@ -1,13 +1,16 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { tryResolveUserId, resolveUserId } from "./lib/auth";
 
 // Get user rewards points
 export const getUserPoints = query({
-  args: { userId: v.string() },
+  args: { userId: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const userId = await tryResolveUserId(ctx, args.userId);
+    if (!userId) return { points: 0, totalEarned: 0 };
     const user = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!user) {
@@ -37,15 +40,16 @@ export const getUserPoints = query({
 // Claim a reward
 export const claimReward = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     rewardId: v.string(),
     pointsCost: v.number(),
     rewardTitle: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const user = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!user) {
