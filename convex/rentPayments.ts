@@ -228,6 +228,12 @@ export const processPaymentCompletion = mutation({
       });
     }
 
+    // First fee from this renter? (BusinessSignal paying_customer.created)
+    const priorFee = await ctx.db
+      .query("homeuRevenue")
+      .withIndex("by_renterId", (q) => q.eq("renterId", payment.renterId))
+      .first();
+
     // Record HomeU revenue
     await ctx.db.insert("homeuRevenue", {
       rentPaymentId: args.rentPaymentId,
@@ -243,6 +249,13 @@ export const processPaymentCompletion = mutation({
       collectedAt: now,
       createdAt: now,
     });
+
+    if (!priorFee) {
+      await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+        kind: "paying_customer.created",
+        payload: { plan: "renter_rent_fee", mrr: 10 },
+      });
+    }
 
     return {
       success: true,

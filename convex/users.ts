@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Create or update user profile
@@ -45,6 +46,10 @@ export const createOrUpdateUser = mutation({
         income: 0,
         verified: false,
         verificationStatus: "pending",
+      });
+      await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+        kind: "user.signed_up",
+        payload: {},
       });
       return newUserId;
     }

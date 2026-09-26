@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Create a new renter profile
@@ -36,6 +37,10 @@ export const create = mutation({
       userId,
       email,
       ...renterData,
+    });
+    await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+      kind: "user.signed_up",
+      payload: {},
     });
 
     return renterId;
@@ -218,6 +223,10 @@ export const linkRenterToProperty = mutation({
         status: "pending",
         createdAt: Date.now(),
       });
+      await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+        kind: "lead.captured",
+        payload: { list: "pm_outreach" },
+      });
 
       return {
         success: true,
@@ -256,6 +265,10 @@ export const linkRenterToProperty = mutation({
         propertyZipCode: property.zipCode,
         status: "pending",
         createdAt: Date.now(),
+      });
+      await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+        kind: "lead.captured",
+        payload: { list: "pm_outreach" },
       });
     }
 
@@ -342,6 +355,10 @@ export const submitManualPropertyAndLink = mutation({
       propertyZipCode: args.zipCode,
       status: "pending",
       createdAt: Date.now(),
+    });
+    await ctx.scheduler.runAfter(0, internal.businessSignal.emit, {
+      kind: "lead.captured",
+      payload: { list: "pm_outreach" },
     });
 
     return {
