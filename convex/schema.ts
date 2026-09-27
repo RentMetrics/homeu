@@ -641,6 +641,8 @@ export default defineSchema({
     isActive: v.boolean(),
     autoPayEnabled: v.optional(v.boolean()),
     straddlePaymentMethodId: v.optional(v.string()),
+    // Legacy: present on early test rows written before routing was renter-scoped.
+    organizationId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_renterId", ["renterId"])
