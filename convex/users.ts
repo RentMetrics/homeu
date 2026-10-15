@@ -112,6 +112,27 @@ export const updateUserProfile = mutation({
   },
 });
 
+// Privacy setting: opt out of having this renter's data used to train/improve AI features
+export const setAiTrainingOptOut = mutation({
+  args: {
+    userId: v.string(),
+    optOut: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const existingUser = await ctx.db
+      .query("renters")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(existingUser._id, { aiTrainingOptOut: args.optOut });
+    return args.optOut;
+  },
+});
+
 // Mark user as verified
 export const verifyUser = mutation({
   args: {

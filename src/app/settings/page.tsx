@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useUserSync } from "@/hooks/useUserSync";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { toast } from "sonner";
 
 const tabs = [
@@ -22,7 +24,31 @@ const tabs = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account");
-  const { user } = useUserSync();
+  const { user, userProfile } = useUserSync();
+  const setAiTrainingOptOut = useMutation(api.users.setAiTrainingOptOut);
+  const [isSavingAiPref, setIsSavingAiPref] = useState(false);
+
+  // Persisted on the renter record. ON = data may be used to improve AI
+  // features (not opted out); unset means not opted out.
+  const aiTrainingAllowed = userProfile ? userProfile.aiTrainingOptOut !== true : true;
+
+  const handleAiTrainingChange = async (allowed: boolean) => {
+    if (!user?.id || !userProfile) return;
+    setIsSavingAiPref(true);
+    try {
+      await setAiTrainingOptOut({ userId: user.id, optOut: !allowed });
+      toast.success(
+        allowed
+          ? "Your data may be used to improve HomeU AI features."
+          : "You've opted out. Your data won't be used to train or improve AI features."
+      );
+    } catch (error) {
+      console.error("Error saving AI preference:", error);
+      toast.error("Couldn't save your choice. Please try again.");
+    } finally {
+      setIsSavingAiPref(false);
+    }
+  };
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -36,7 +62,6 @@ export default function SettingsPage() {
 
     // Privacy settings
     profileVisibility: "private",
-    dataSharing: false,
     analyticsOptIn: true,
 
     // Appearance settings
@@ -289,12 +314,17 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Data Sharing</Label>
-                    <p className="text-sm text-gray-500">Share anonymized data for service improvement</p>
+                    <Label htmlFor="ai-training">Use my data to improve AI features</Label>
+                    <p className="text-sm text-gray-500">
+                      When on, HomeU may use your information internally to train and improve its AI features. Turn it
+                      off to opt out. Saved automatically; doesn&apos;t affect de-identified data already created.
+                    </p>
                   </div>
                   <Switch
-                    checked={settings.dataSharing}
-                    onCheckedChange={(checked) => handleSettingChange("dataSharing", checked)}
+                    id="ai-training"
+                    checked={aiTrainingAllowed}
+                    onCheckedChange={handleAiTrainingChange}
+                    disabled={!userProfile || isSavingAiPref}
                   />
                 </div>
 

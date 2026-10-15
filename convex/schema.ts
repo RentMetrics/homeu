@@ -64,6 +64,9 @@ export default defineSchema({
     verifiedEmploymentStartDate: v.optional(v.string()),
     incomeVerificationMethod: v.optional(v.string()),
     lastIncomeSync: v.optional(v.number()),
+    // Privacy: true = do not use this renter's data to train/improve AI features.
+    // Unset/false = not opted out (Settings > Privacy & Security).
+    aiTrainingOptOut: v.optional(v.boolean()),
   }).index("by_userId", ["userId"])
     .index("by_propertyId", ["propertyId"])
     .index("by_argyleUserId", ["argyleUserId"]),

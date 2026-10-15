@@ -93,7 +93,7 @@ export default function PrivacyPolicyPage() {
               We may also use your information internally to develop, train and improve our analytics and AI features.
             </p>
             <p>
-              <strong>Your choices.</strong> You can opt out of having your information used to train AI features at any time by emailing <a href="mailto:privacy@homeu.co" className="text-blue-600 hover:underline">privacy@homeu.co</a> or from your account settings where available. Opting out does not affect de-identified information already created.
+              <strong>Your choices.</strong> You can opt out of having your information used to train AI features at any time from your account settings (Settings &gt; Privacy &amp; Security, &ldquo;Use my data to improve AI features&rdquo;) or by emailing <a href="mailto:privacy@homeu.co" className="text-blue-600 hover:underline">privacy@homeu.co</a>. Opting out does not affect de-identified information already created.
             </p>
             <p>
               <strong>No sale of personal information.</strong> We do not sell your personal information or share it for cross-context behavioral advertising. If that ever changes, we will update this policy and give you the right to opt out before it applies to you.
