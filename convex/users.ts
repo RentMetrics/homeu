@@ -115,13 +115,14 @@ export const updateUserProfile = mutation({
 // Privacy setting: opt out of having this renter's data used to train/improve AI features
 export const setAiTrainingOptOut = mutation({
   args: {
-    userId: v.string(),
+    userId: v.optional(v.string()),
     optOut: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args.userId);
     const existingUser = await ctx.db
       .query("renters")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (!existingUser) {
