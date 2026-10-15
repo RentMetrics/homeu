@@ -10,7 +10,7 @@ export default function TermsOfServicePage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
-        <p className="text-muted-foreground mb-8">Last Updated: March 16, 2026</p>
+        <p className="text-muted-foreground mb-8">Last Updated: October 15, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
@@ -135,49 +135,62 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">11. Disclaimer of Warranties</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">11. How We Use Your Data, Including for AI</h2>
+            <p>
+              <strong>Your Content.</strong> You keep ownership of the information and files you add to HomeU (&quot;Your Content&quot;). You give HomeU Inc. a non-exclusive, worldwide, royalty-free license to host, process and display Your Content to run, secure and improve HomeU for you.
+            </p>
+            <p>
+              <strong>De-identified Data and AI.</strong> HomeU Inc. may create de-identified and aggregated data from Your Content and your use of HomeU, combined with data from other users, so that it can no longer reasonably be linked to you or your household (&quot;De-identified Data&quot;). We may use De-identified Data, and may use Your Content internally, to develop, train and improve analytics, benchmarks and artificial-intelligence features. HomeU Inc. owns De-identified Data and may use and share it for any lawful purpose, including in reports and data products for third parties. We will not try to re-identify De-identified Data, and we contractually prohibit recipients from doing so.
+            </p>
+            <p>
+              <strong>What We Don&apos;t Do.</strong> We do not sell your personal information, and we do not share information that identifies you with third parties for their own marketing. Our <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link> explains your rights and choices, including how to opt out of having Your Content used to train AI features.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">12. Disclaimer of Warranties</h2>
             <p>
               THE PLATFORM IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. HOMEU DOES NOT WARRANT THAT THE PLATFORM WILL BE UNINTERRUPTED, ERROR-FREE, OR COMPLETELY SECURE. HOMEU DISCLAIMS ALL WARRANTIES, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">12. Limitation of Liability</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">13. Limitation of Liability</h2>
             <p>
               TO THE MAXIMUM EXTENT PERMITTED BY LAW, HOMEU SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE PLATFORM. HOMEU&apos;S TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT OF FEES PAID BY YOU TO HOMEU IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">13. Indemnification</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">14. Indemnification</h2>
             <p>
               You agree to indemnify, defend, and hold harmless HomeU, its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses arising out of your use of the Platform or violation of these Terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">14. Termination</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">15. Termination</h2>
             <p>
               HomeU may suspend or terminate your access to the Platform at any time, with or without cause, and with or without notice. Upon termination, all rights granted to you under these Terms will immediately cease. Any pending payments will be processed or refunded as applicable.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">15. Governing Law and Dispute Resolution</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">16. Governing Law and Dispute Resolution</h2>
             <p>
               These Terms are governed by the laws of the State of Utah, without regard to conflict of law principles. Any disputes arising from these Terms or your use of the Platform shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, except where prohibited by law.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">16. Changes to These Terms</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">17. Changes to These Terms</h2>
             <p>
               HomeU reserves the right to modify these Terms at any time. We will notify you of material changes by posting the updated Terms on the Platform and updating the &quot;Last Updated&quot; date. Your continued use of the Platform after changes take effect constitutes acceptance of the revised Terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">17. Contact Information</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">18. Contact Information</h2>
             <p>If you have questions about these Terms, please contact us at:</p>
             <div className="mt-2">
               <p><strong>HomeU Inc.</strong></p>

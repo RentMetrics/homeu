@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
-        <p className="text-muted-foreground mb-8">Last Updated: March 16, 2026</p>
+        <p className="text-muted-foreground mb-8">Last Updated: October 15, 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-8">
           <section>
@@ -80,12 +80,28 @@ export default function PrivacyPolicyPage() {
               <li><strong>Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets, your information may be transferred to the acquiring entity</li>
             </ul>
             <p className="mt-4 font-medium">
-              We do NOT sell your personal information to third parties for marketing purposes.
+              We do NOT sell your personal information or share it for cross-context behavioral advertising.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">5. Data Security</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">5. De-identified Data and AI</h2>
+            <p>
+              We create de-identified and aggregated information from the data we collect, so that it can no longer reasonably be linked to you, your household or your device. We maintain and use it only in de-identified form, will not attempt to re-identify it, and require anyone we share it with to do the same. We may use and share de-identified information for any lawful purpose, including research, benchmarks, reports and data products for third parties.
+            </p>
+            <p>
+              We may also use your information internally to develop, train and improve our analytics and AI features.
+            </p>
+            <p>
+              <strong>Your choices.</strong> You can opt out of having your information used to train AI features at any time by emailing <a href="mailto:privacy@homeu.co" className="text-blue-600 hover:underline">privacy@homeu.co</a> or from your account settings where available. Opting out does not affect de-identified information already created.
+            </p>
+            <p>
+              <strong>No sale of personal information.</strong> We do not sell your personal information or share it for cross-context behavioral advertising. If that ever changes, we will update this policy and give you the right to opt out before it applies to you.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">6. Data Security</h2>
             <p>
               We implement industry-standard security measures to protect your personal information, including:
             </p>
@@ -103,14 +119,14 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">6. Data Retention</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">7. Data Retention</h2>
             <p>
               We retain your personal information for as long as necessary to provide our services, comply with legal obligations, resolve disputes, and enforce our agreements. For specific retention periods, please see our <Link href="/data-retention" className="text-blue-600 hover:underline">Data Retention Policy</Link>.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">7. Your Rights and Choices</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">8. Your Rights and Choices</h2>
             <p>Depending on your jurisdiction, you may have the following rights:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Access:</strong> Request a copy of the personal information we hold about you</li>
@@ -126,28 +142,28 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">8. California Privacy Rights (CCPA)</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">9. California Privacy Rights (CCPA)</h2>
             <p>
-              If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA), including the right to know what personal information we collect, the right to request deletion, and the right to opt out of the sale of personal information. HomeU does not sell personal information.
+              If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA), including the right to know what personal information we collect, the right to request deletion, and the right to opt out of the sale or sharing of personal information. HomeU does not sell personal information or share it for cross-context behavioral advertising.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">9. Children&apos;s Privacy</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">10. Children&apos;s Privacy</h2>
             <p>
               The Platform is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from children. If we learn that we have collected information from a child under 18, we will take steps to delete it promptly.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">10. Changes to This Policy</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">11. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on the Platform and updating the &quot;Last Updated&quot; date. We encourage you to review this policy periodically.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mt-8 mb-4">11. Contact Us</h2>
+            <h2 className="text-2xl font-semibold mt-8 mb-4">12. Contact Us</h2>
             <p>If you have questions or concerns about this Privacy Policy, please contact us at:</p>
             <div className="mt-2">
               <p><strong>HomeU Inc.</strong></p>
